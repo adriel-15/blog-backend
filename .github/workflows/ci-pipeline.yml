@@ -1,0 +1,49 @@
+name: CI Pipeline
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches-ignore: []
+    paths-ignore: []
+
+jobs:
+  build-and-analyze:
+    name: Test & SonarCloud
+    runs-on: ubuntu-latest
+
+    env:
+      env_profile: test  # This will activate the 'test' Spring profile
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Cache SonarCloud packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+
+      - name: Run Tests
+        run: ./mvnw test
+
+      - name: SonarCloud Scan
+        run: |
+          ./mvnw verify sonar:sonar \
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }} \
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+
+      - name: Wait for SonarCloud Quality Gate
+        uses: sonarsource/sonarcloud-quality-gate-action@v1.1.0
+        with:
+          sonar-token: ${{ secrets.SONAR_TOKEN }}
+        timeout-minutes: 5
