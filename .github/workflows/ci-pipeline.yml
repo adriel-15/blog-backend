@@ -32,6 +32,9 @@ jobs:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
 
+      - name: Make Maven Wrapper executable
+        run: chmod +x ./mvnw
+
       - name: Run tests and analyze with SonarCloud
         run: |
           ./mvnw verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
