@@ -13,7 +13,8 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      env_profile: test  # This will activate the 'test' Spring profile
+      env_profile: test  # Activate Spring profile for testing
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
     steps:
       - name: Checkout code
@@ -31,19 +32,11 @@ jobs:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
 
-      - name: Run Tests
-        run: ./mvnw test
-
-      - name: SonarCloud Scan
+      - name: Run tests and analyze with SonarCloud
         run: |
-          ./mvnw verify sonar:sonar \
+          ./mvnw verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }} \
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} \
             -Dsonar.host.url=https://sonarcloud.io \
-            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
-
-      - name: Wait for SonarCloud Quality Gate
-        uses: sonarsource/sonarcloud-quality-gate-action@v1.2.0
-        with:
-          sonar-token: ${{ secrets.SONAR_TOKEN }}
-        timeout-minutes: 5
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
