@@ -1,8 +1,4 @@
-drop schema if exists `blog_db`;
-
-create schema `blog_db`;
-
-use `blog_db`;
+use `arblog-db`;
 
 CREATE TABLE `authority` (
   `id` int NOT NULL AUTO_INCREMENT,
