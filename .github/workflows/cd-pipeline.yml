@@ -12,9 +12,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    env:
-      env_profile: prod  # Activate Spring profile for prod
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
