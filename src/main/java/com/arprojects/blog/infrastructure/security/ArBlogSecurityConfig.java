@@ -1,6 +1,5 @@
 package com.arprojects.blog.infrastructure.security;
 
-import com.arprojects.blog.domain.enums.Authorities;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;

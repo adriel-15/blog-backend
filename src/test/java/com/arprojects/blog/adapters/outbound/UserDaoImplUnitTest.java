@@ -4,7 +4,6 @@ import com.arprojects.blog.adapters.outbound.repositories.UserDaoImpl;
 import com.arprojects.blog.domain.entities.User;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -37,7 +36,7 @@ class UserDaoImplUnitTest {
         expectedUser.setPassword("mockpassword");
 
         when(entityManager.createQuery(anyString(), eq(User.class))).thenReturn(query);
-        when(query.setParameter(eq("username"), eq(username))).thenReturn(query);
+        when(query.setParameter("username", username)).thenReturn(query);
         when(query.getSingleResult()).thenReturn(expectedUser);
 
         // Act
@@ -55,7 +54,7 @@ class UserDaoImplUnitTest {
         String username = "unknown";
 
         when(entityManager.createQuery(anyString(), eq(User.class))).thenReturn(query);
-        when(query.setParameter(eq("username"), eq(username))).thenReturn(query);
+        when(query.setParameter("username", username)).thenReturn(query);
         when(query.getSingleResult()).thenThrow(new RuntimeException("User not found"));
 
         // Act

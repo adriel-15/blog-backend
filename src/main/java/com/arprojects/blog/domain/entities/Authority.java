@@ -16,7 +16,7 @@ public class Authority {
     private int id;
 
     @Column(name = "AUTHORITY")
-    private Authorities authority;
+    private Authorities authorityType;
 
     @ManyToMany(mappedBy = "authorities",fetch = FetchType.LAZY)
     @JsonIgnore
@@ -25,8 +25,8 @@ public class Authority {
     public Authority() {
     }
 
-    public Authority(Authorities authority){
-        this.authority = authority;
+    public Authority(Authorities authorityType){
+        this.authorityType = authorityType;
     }
 
     public int getId() {
@@ -38,11 +38,11 @@ public class Authority {
     }
 
     public Authorities getAuthority() {
-        return authority;
+        return authorityType;
     }
 
-    public void setAuthority(Authorities authority) {
-        this.authority = authority;
+    public void setAuthority(Authorities authorityType) {
+        this.authorityType = authorityType;
     }
 
     public List<User> getUsers() {

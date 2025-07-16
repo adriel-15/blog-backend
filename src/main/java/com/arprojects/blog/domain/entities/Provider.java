@@ -15,7 +15,7 @@ public class Provider {
     private int id;
 
     @Column(name = "PROVIDER")
-    private Providers provider;
+    private Providers providerType;
 
     @OneToMany(mappedBy = "provider")
     private List<User> users;
@@ -32,11 +32,11 @@ public class Provider {
     }
 
     public Providers getProvider() {
-        return provider;
+        return providerType;
     }
 
-    public void setProvider(Providers provider) {
-        this.provider = provider;
+    public void setProvider(Providers providerType) {
+        this.providerType = providerType;
     }
 
     public List<User> getUsers() {

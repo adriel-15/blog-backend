@@ -89,7 +89,7 @@ class AuthControllerIntegrationTest {
 
     @Test
     @Transactional
-    public void loginEndpoint_returnJwt_ifCredentialsAreValid() throws Exception{
+    void loginEndpoint_returnJwt_ifCredentialsAreValid() throws Exception{
         MvcResult result =  mockMvc.perform(post("/login")
                 .with(httpBasic("adriel15","test123")))
                 .andExpect(status().isOk())
@@ -102,7 +102,7 @@ class AuthControllerIntegrationTest {
 
         Jwt decodedJwt = jwtDecoder.decode(jwtDto.token());
 
-        assertEquals(decodedJwt.getSubject(),"adriel15");
+        assertEquals("adriel15",decodedJwt.getSubject());
         assertTrue(decodedJwt.getClaimAsString("authorities").contains("ROLE_ADMIN"));
         assertNotNull(decodedJwt.getClaimAsString("userId"));
 
@@ -110,7 +110,7 @@ class AuthControllerIntegrationTest {
 
     @Test
     @Transactional
-    public void loginEndpoint_returnUnauthorizedStatus_ifCredentialsAreNotValid() throws Exception{
+    void loginEndpoint_returnUnauthorizedStatus_ifCredentialsAreNotValid() throws Exception{
         mockMvc.perform(post("/login")
                 .with(httpBasic("bad","credentials")))
                 .andExpect(status().isUnauthorized());

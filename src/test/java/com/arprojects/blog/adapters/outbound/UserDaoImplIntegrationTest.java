@@ -7,18 +7,13 @@ import com.arprojects.blog.domain.entities.Provider;
 import com.arprojects.blog.domain.entities.User;
 import com.arprojects.blog.domain.enums.Authorities;
 import com.arprojects.blog.domain.enums.Providers;
-import com.arprojects.blog.infrastructure.security.RsaKeyProperties;
 import com.arprojects.blog.ports.outbound.repository_contracts.UserDao;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;

@@ -3,7 +3,6 @@ package com.arprojects.blog.adapters.inbound;
 import com.arprojects.blog.adapters.inbound.controllers.AuthController;
 import com.arprojects.blog.domain.dtos.JwtDto;
 import com.arprojects.blog.ports.inbound.service_contracts.JwtService;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
