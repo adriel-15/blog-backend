@@ -44,6 +44,7 @@ jobs:
           region: ${{ secrets.AWS_REGION }}
           version_label: v-${{ github.run_number }}
           deployment_package: app.zip
+          wait_for_deployment: false
 
       - name: Run SQL migration script on RDS
         uses: docker://mysql:8

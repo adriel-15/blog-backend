@@ -2,10 +2,8 @@ name: CI Pipeline
 
 on:
   pull_request:
-    branches: [develop, main]
-  push:
-    branches-ignore: []
-    paths-ignore: []
+    branches:
+      - develop
 
 jobs:
   build-and-analyze:
@@ -13,7 +11,6 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      env_profile: test  # Activate Spring profile for testing
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
     steps:
