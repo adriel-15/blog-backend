@@ -2,10 +2,10 @@ package com.arprojects.blog.application;
 
 import com.arprojects.blog.domain.dtos.CustomUserDetails;
 import com.arprojects.blog.domain.entities.Authority;
+import com.arprojects.blog.domain.entities.Profile;
 import com.arprojects.blog.domain.entities.User;
 import com.arprojects.blog.domain.enums.Authorities;
 import com.arprojects.blog.ports.outbound.repository_contracts.UserDao;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -29,14 +29,18 @@ class CustomUserDetailServiceUnitTest {
     private CustomUserDetailService customUserDetailService;
 
     @Test
-    @DisplayName("Should return UserDetails when user exists")
     void shouldReturnUserDetails_whenUserExists(){
         //Arrange
         String userRole = "ROLE_"+Authorities.ADMIN.getLabel();
+
+        Profile userProfile = new Profile();
+        userProfile.setProfileName("johny124");
+
         User user = new User();
         user.setId(1);
         user.setUsername("john");
         user.setPassword("secret");
+        user.setProfile(userProfile);
         user.setEnabled(true);
         user.setAuthorities(Set.of(new Authority(Authorities.ADMIN)));
 
@@ -56,10 +60,10 @@ class CustomUserDetailServiceUnitTest {
         assertTrue(userDetails.isAccountNonExpired());
         assertTrue(userDetails.isCredentialsNonExpired());
         assertTrue(userDetails.isEnabled());
+        assertEquals(userDetails.getProfileName(),user.getProfile().getProfileName());
     }
 
     @Test
-    @DisplayName("Should throw UsernameNotFoundException when user does not exist")
     void shouldThrowException_whenUserDoesNotExist() {
         // Arrange
         when(userDao.getUserByUsername("unknown")).thenReturn(Optional.empty());

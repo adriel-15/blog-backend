@@ -1,42 +1,46 @@
 package com.arprojects.blog.domain.entities;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
-import java.time.LocalDateTime;
 import java.util.Set;
 
 @Entity
 @Table(name = "USERS")
-public class User {
+public class User extends Auditable<String>{
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "ID")
     private long id;
 
-    @Column(name = "USERNAME")
+    @Column(name = "USERNAME", unique = true,length = 100)
+    @Size(max = 100)
     private String username;
 
-    @Column(name = "PASSWORD")
+    @Column(name = "PASSWORD", length = 300)
+    @Size(max = 300)
     private String password;
 
-    @Column(name = "EMAIL")
+    @Column(name = "EMAIL", unique = true, length = 320, nullable = false)
+    @NotNull
+    @Email
+    @Size(max = 320)
     private String email;
 
-    @Column(name = "ENABLED")
+    @Column(name = "ENABLED", nullable = false)
+    @NotNull
     private boolean enabled;
 
-    @Column(name = "CREATED_AT")
-    private LocalDateTime createdAt;
-
-    @Column(name = "UPDATED_AT")
-    private LocalDateTime updatedAt;
-
-    @Column(name = "PROVIDER_UID")
+    @Column(name = "PROVIDER_UID", unique = true, length = 300)
+    @Size(max = 300)
     private String providerUniqueId;
 
     @ManyToOne
-    @JoinColumn(name = "PROVIDER_ID")
+    @JoinColumn(name = "PROVIDER_ID", nullable = false)
+    @NotNull
     private Provider provider;
 
     @ManyToMany(fetch = FetchType.LAZY)
@@ -44,7 +48,8 @@ public class User {
     private Set<Authority> authorities;
 
     @OneToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name = "PROFILE_ID")
+    @JoinColumn(name = "PROFILE_ID", nullable = false, unique = true)
+    @NotNull
     private Profile profile;
 
     public User() {
@@ -88,22 +93,6 @@ public class User {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
     }
 
     public String getProviderUniqueId() {

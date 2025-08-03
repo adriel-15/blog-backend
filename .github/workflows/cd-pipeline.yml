@@ -46,10 +46,12 @@ jobs:
           deployment_package: app.zip
           wait_for_deployment: false
 
-      - name: Run SQL migration script on RDS
+      - name: Run schema and data SQL scripts on RDS
         uses: docker://mysql:8
         env:
           MYSQL_PWD: ${{ secrets.RDS_PASSWORD }}
         with:
           args: >
-            sh -c "mysql -h ${{ secrets.RDS_ENDPOINT }} -u ${{ secrets.RDS_USERNAME }} -D ${{ secrets.RDS_DATABASE }} < ./init.sql"
+            sh -c "mysql -h ${{ secrets.RDS_ENDPOINT }} -u ${{ secrets.RDS_USERNAME }} -D ${{ secrets.RDS_DATABASE }} < ./src/main/resources/schema.sql &&
+                   mysql -h ${{ secrets.RDS_ENDPOINT }} -u ${{ secrets.RDS_USERNAME }} -D ${{ secrets.RDS_DATABASE }} < ./src/main/resources/data.sql"
+      

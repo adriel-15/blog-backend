@@ -9,6 +9,7 @@ import java.util.Collection;
 public class CustomUserDetails implements UserDetails {
 
     private final long userId;
+    private final String profileName;
     private final String username;
     private final String password;
     private final boolean enabled;
@@ -16,6 +17,7 @@ public class CustomUserDetails implements UserDetails {
 
     public CustomUserDetails(User user,Collection<? extends GrantedAuthority> authorities){
         this.userId = user.getId();
+        this.profileName = user.getProfile().getProfileName();
         this.username = user.getUsername();
         this.password = user.getPassword();
         this.enabled = user.isEnabled();
@@ -26,6 +28,9 @@ public class CustomUserDetails implements UserDetails {
         return this.userId;
     }
 
+    public String getProfileName() {
+        return this.profileName;
+    }
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return this.authorities;
