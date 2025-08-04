@@ -11,10 +11,10 @@ import com.arprojects.blog.domain.entities.User;
 import com.arprojects.blog.domain.enums.Authorities;
 import com.arprojects.blog.domain.enums.Providers;
 import com.arprojects.blog.domain.exceptions.GoogleLoginFailedException;
+import com.arprojects.blog.ports.outbound.repository_contracts.AuthorityDao;
+import com.arprojects.blog.ports.outbound.repository_contracts.ProviderDao;
 import com.arprojects.blog.ports.outbound.repository_contracts.UserDao;
 import com.arprojects.blog.ports.outbound.service_contracts.GoogleAuthService;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.TypedQuery;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -48,19 +48,13 @@ public class JwtServiceImplUnitTest {
     private UserDao userDao;
 
     @Mock
+    private AuthorityDao authorityDao;
+
+    @Mock
+    private ProviderDao providerDao;
+
+    @Mock
     private Authentication authentication;
-
-    @Mock
-    private JwtEncoderParameters jwtEncoderParameters;
-
-    @Mock
-    private EntityManager entityManager;
-
-    @Mock
-    private TypedQuery<Authority> authorityQuery;
-
-    @Mock
-    private TypedQuery<Provider> providerQuery;
 
     @InjectMocks
     private JwtServiceImpl jwtService;
@@ -121,31 +115,34 @@ public class JwtServiceImplUnitTest {
     @Test
     void generateJwt_withNewUser_createsUserAndReturnsToken() throws GoogleLoginFailedException {
         GoogleLoginDto googleLoginDto = new GoogleLoginDto("access-token");
-
         GoogleInfoDto googleInfoDto = new GoogleInfoDto("sub123","New User", "newuser@example.com");
+
+        Authority authority = new Authority(Authorities.READER);
+        authority.setId(1);
+
+        Provider provider = new Provider(Providers.GOOGLE);
+        provider.setId(1);
+
+        Profile profile = new Profile(googleInfoDto.name());
+        profile.setId(1);
+
         when(googleAuthService.authenticate("access-token")).thenReturn(Optional.of(googleInfoDto));
         when(userDao.getUserByProviderUID("sub123")).thenReturn(Optional.empty());
+        when(authorityDao.getAuthorityByType(Authorities.READER)).thenReturn(Optional.of(authority));
+        when(providerDao.getProviderByType(Providers.GOOGLE)).thenReturn(Optional.of(provider));
 
-        // simulate database assigning id and username
-        doAnswer(invocation -> {
-            User user = invocation.getArgument(0);
-            user.setId(1L);
-            user.setUsername("newuser@example.com");
+        doAnswer(invocationOnMock -> {
+            User createdUser = invocationOnMock.getArgument(0);
+            createdUser.setId(1);
+            createdUser.setEmail(googleInfoDto.email());
+            createdUser.setProvider(provider);
+            createdUser.setEnabled(true);
+            createdUser.setProfile(profile);
+            createdUser.setAuthorities(Set.of(authority));
+            createdUser.setProviderUniqueId(googleInfoDto.sub());
             return null;
         }).when(userDao).create(any(User.class));
 
-        when(entityManager.createQuery(
-                "select a from Authority a where a.authorityType = :authorityType",
-                Authority.class)).thenReturn(authorityQuery);
-        when(authorityQuery.setParameter("authorityType",Authorities.READER)).thenReturn(authorityQuery);
-        when(authorityQuery.getSingleResult()).thenReturn(new Authority(Authorities.READER));
-
-        when(entityManager.createQuery(
-                "select p from Provider p where p.providerType = :providerType",
-                Provider.class)).thenReturn(providerQuery);
-        when(providerQuery.setParameter("providerType", Providers.GOOGLE)).thenReturn(providerQuery);
-        when(providerQuery.getSingleResult()).thenReturn(new Provider(Providers.GOOGLE));
-        
         //simulate
         Jwt jwt = mock(Jwt.class);
         when(jwt.getTokenValue()).thenReturn("new-user-token");

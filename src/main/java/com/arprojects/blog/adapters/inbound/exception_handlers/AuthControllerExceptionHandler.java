@@ -1,7 +1,9 @@
 package com.arprojects.blog.adapters.inbound.exception_handlers;
 
+import com.arprojects.blog.domain.exceptions.AuthorityNotFoundException;
 import com.arprojects.blog.domain.exceptions.EmailAlreadyExistsException;
 import com.arprojects.blog.domain.exceptions.GoogleLoginFailedException;
+import com.arprojects.blog.domain.exceptions.ProviderNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -20,5 +22,21 @@ public class AuthControllerExceptionHandler {
         problemDetail.setTitle("Login fail");
         problemDetail.setInstance(URI.create(request.getRequestURI()));
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(problemDetail);
+    }
+
+    @ExceptionHandler
+    public ResponseEntity<ProblemDetail> handleAuthorityNotFoundException(AuthorityNotFoundException ex, HttpServletRequest request){
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problemDetail.setTitle("Authority not found");
+        problemDetail.setInstance(URI.create(request.getRequestURI()));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problemDetail);
+    }
+
+    @ExceptionHandler
+    public ResponseEntity<ProblemDetail> handleProviderNotFoundException(ProviderNotFoundException ex, HttpServletRequest request){
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problemDetail.setTitle("Provider not found");
+        problemDetail.setInstance(URI.create(request.getRequestURI()));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problemDetail);
     }
 }
