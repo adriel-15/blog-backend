@@ -1,7 +1,6 @@
 package com.arprojects.blog.adapters.outbound.services;
 
 import com.arprojects.blog.domain.dtos.GoogleInfoDto;
-import com.arprojects.blog.ports.outbound.service_contracts.GoogleAuthService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentMatchers;
@@ -51,7 +50,7 @@ public class GoogleAuthServiceImplUnitTest {
     }
 
     @Test
-    void should_returnEmpty_when_anyFieldIsMissing() {
+    void should_returnEmpty_when_nameFieldIsMissing() {
         GoogleInfoDto dto = new GoogleInfoDto("123", null, "Test User"); // missing email
         ResponseEntity<GoogleInfoDto> response = new ResponseEntity<>(dto, HttpStatus.OK);
 
@@ -67,8 +66,43 @@ public class GoogleAuthServiceImplUnitTest {
         assertTrue(result.isEmpty());
     }
 
+
     @Test
-    void shouldReturnEmptyWhenRestTemplateThrowsException() {
+    void should_returnEmpty_when_subFieldIsMissing() {
+        GoogleInfoDto dto = new GoogleInfoDto(null, "adriel", "Test User"); // missing email
+        ResponseEntity<GoogleInfoDto> response = new ResponseEntity<>(dto, HttpStatus.OK);
+
+        when(restTemplate.exchange(
+                ArgumentMatchers.eq(GOOGLE_USERINFO_URL),
+                ArgumentMatchers.eq(HttpMethod.GET),
+                ArgumentMatchers.any(HttpEntity.class),
+                ArgumentMatchers.eq(GoogleInfoDto.class)
+        )).thenReturn(response);
+
+        Optional<GoogleInfoDto> result = googleAuthService.authenticate("some-token");
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void should_returnEmpty_when_emailFieldIsMissing() {
+        GoogleInfoDto dto = new GoogleInfoDto("12312", "adriel", null); // missing email
+        ResponseEntity<GoogleInfoDto> response = new ResponseEntity<>(dto, HttpStatus.OK);
+
+        when(restTemplate.exchange(
+                ArgumentMatchers.eq(GOOGLE_USERINFO_URL),
+                ArgumentMatchers.eq(HttpMethod.GET),
+                ArgumentMatchers.any(HttpEntity.class),
+                ArgumentMatchers.eq(GoogleInfoDto.class)
+        )).thenReturn(response);
+
+        Optional<GoogleInfoDto> result = googleAuthService.authenticate("some-token");
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void should_returnEmpty_WhenRestTemplateThrowsException() {
         when(restTemplate.exchange(
                 ArgumentMatchers.eq(GOOGLE_USERINFO_URL),
                 ArgumentMatchers.eq(HttpMethod.GET),

@@ -10,5 +10,9 @@ public interface UserDao {
 
     Optional<User> getUserByProviderUID(String providerUID);
 
-    void create(User user) throws EmailAlreadyExistsException, UsernameAlreadyExistsException, ProviderUIDAlreadyExistsException, DuplicateKeyException, UserCreationException;
+    void create(User user);
+
+    boolean emailExists(String email);
+
+    boolean providerUIDExists(String providerUID);
 }

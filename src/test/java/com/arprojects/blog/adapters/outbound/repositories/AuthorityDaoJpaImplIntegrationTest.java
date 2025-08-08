@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 @ActiveProfiles("test")
-public class AuthorityDaoImplIntegrationTest {
+public class AuthorityDaoJpaImplIntegrationTest {
 
     @Autowired
     private EntityManager entityManager;

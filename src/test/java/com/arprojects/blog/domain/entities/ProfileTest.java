@@ -42,4 +42,11 @@ class ProfileTest {
 
     }
 
+
+    @Test
+    void test_profileEntity_Constructors(){
+        Profile profile = new Profile("Adriel Rosario");
+
+        assertEquals("Adriel Rosario", profile.getProfileName());
+    }
 }

@@ -2,7 +2,7 @@ package com.arprojects.blog.adapters.inbound.controllers;
 
 import com.arprojects.blog.domain.dtos.GoogleLoginDto;
 import com.arprojects.blog.domain.dtos.JwtDto;
-import com.arprojects.blog.domain.exceptions.GoogleLoginFailedException;
+import com.arprojects.blog.domain.exceptions.*;
 import com.arprojects.blog.ports.inbound.service_contracts.JwtService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -46,7 +46,13 @@ public class AuthController {
     }
 
     @PostMapping("/google")
-    public JwtDto googleLogin(@RequestBody GoogleLoginDto googleLoginDto) throws GoogleLoginFailedException {
+    public JwtDto googleLogin(@RequestBody GoogleLoginDto googleLoginDto) throws
+            GoogleLoginFailedException,
+            UserNotFoundException,
+            ProviderNotFoundException,
+            AuthorityNotFoundException,
+            EmailAlreadyExistsException
+    {
         return this.jwtService.generateJwt(googleLoginDto);
     }
 

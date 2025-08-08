@@ -3,6 +3,7 @@ package com.arprojects.blog.adapters.inbound;
 
 import com.arprojects.blog.infrastructure.security.ArBlogSecurityConfig;
 import com.arprojects.blog.infrastructure.security.RsaKeyProperties;
+import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -32,4 +33,5 @@ public class AbstractControllerUnitTest {
 
     @MockitoBean
     protected RestTemplate restTemplate;
+
 }

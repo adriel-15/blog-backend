@@ -10,12 +10,12 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public class AuthorityDaoImpl implements AuthorityDao {
+public class AuthorityDaoJpaImpl implements AuthorityDao {
 
-    private EntityManager entityManager;
+    private final EntityManager entityManager;
 
     @Autowired
-    public AuthorityDaoImpl(EntityManager entityManager){
+    public AuthorityDaoJpaImpl(EntityManager entityManager){
         this.entityManager = entityManager;
     }
 

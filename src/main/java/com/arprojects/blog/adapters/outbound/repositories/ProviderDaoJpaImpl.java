@@ -10,12 +10,12 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public class ProviderDaoImpl implements ProviderDao {
+public class ProviderDaoJpaImpl implements ProviderDao {
 
     private final EntityManager entityManager;
 
     @Autowired
-    public ProviderDaoImpl(EntityManager entityManager){
+    public ProviderDaoJpaImpl(EntityManager entityManager){
         this.entityManager = entityManager;
     }
     @Override

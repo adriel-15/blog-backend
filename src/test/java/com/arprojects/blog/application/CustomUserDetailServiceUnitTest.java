@@ -29,7 +29,7 @@ class CustomUserDetailServiceUnitTest {
     private CustomUserDetailService customUserDetailService;
 
     @Test
-    void shouldReturnUserDetails_whenUserExists(){
+    void loadUserByUsername_shouldReturnUserDetails_whenUserExists(){
         //Arrange
         String userRole = "ROLE_"+Authorities.ADMIN.getLabel();
 
@@ -64,7 +64,7 @@ class CustomUserDetailServiceUnitTest {
     }
 
     @Test
-    void shouldThrowException_whenUserDoesNotExist() {
+    void loadUserByUsername_shouldThrowException_whenUserDoesNotExist() {
         // Arrange
         when(userDao.getUserByUsername("unknown")).thenReturn(Optional.empty());
 

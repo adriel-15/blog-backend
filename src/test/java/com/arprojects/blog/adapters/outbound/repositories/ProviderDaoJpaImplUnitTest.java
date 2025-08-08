@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class ProviderDaoImplUnitTest {
+public class ProviderDaoJpaImplUnitTest {
 
     @Mock
     private EntityManager entityManager;
@@ -25,7 +25,7 @@ public class ProviderDaoImplUnitTest {
     private TypedQuery<Provider> typedQuery;
 
     @InjectMocks
-    private ProviderDaoImpl providerDao;
+    private ProviderDaoJpaImpl providerDao;
 
     @Test
     void getProviderByType_shouldReturnProvider_whenTypeExists(){

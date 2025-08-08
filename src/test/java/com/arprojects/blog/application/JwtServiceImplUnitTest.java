@@ -1,18 +1,12 @@
 package com.arprojects.blog.application;
 
-import com.arprojects.blog.domain.dtos.CustomUserDetails;
-import com.arprojects.blog.domain.dtos.GoogleInfoDto;
-import com.arprojects.blog.domain.dtos.GoogleLoginDto;
-import com.arprojects.blog.domain.dtos.JwtDto;
-import com.arprojects.blog.domain.entities.Authority;
-import com.arprojects.blog.domain.entities.Profile;
-import com.arprojects.blog.domain.entities.Provider;
-import com.arprojects.blog.domain.entities.User;
+import com.arprojects.blog.domain.dtos.*;
 import com.arprojects.blog.domain.enums.Authorities;
 import com.arprojects.blog.domain.enums.Providers;
-import com.arprojects.blog.domain.exceptions.GoogleLoginFailedException;
-import com.arprojects.blog.ports.outbound.repository_contracts.AuthorityDao;
-import com.arprojects.blog.ports.outbound.repository_contracts.ProviderDao;
+import com.arprojects.blog.domain.exceptions.*;
+import com.arprojects.blog.ports.inbound.service_contracts.AuthorityService;
+import com.arprojects.blog.ports.inbound.service_contracts.ProviderService;
+import com.arprojects.blog.ports.inbound.service_contracts.UserService;
 import com.arprojects.blog.ports.outbound.repository_contracts.UserDao;
 import com.arprojects.blog.ports.outbound.service_contracts.GoogleAuthService;
 import org.junit.jupiter.api.Test;
@@ -27,10 +21,12 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -45,13 +41,7 @@ public class JwtServiceImplUnitTest {
     private GoogleAuthService googleAuthService;
 
     @Mock
-    private UserDao userDao;
-
-    @Mock
-    private AuthorityDao authorityDao;
-
-    @Mock
-    private ProviderDao providerDao;
+    private UserService userService;
 
     @Mock
     private Authentication authentication;
@@ -60,11 +50,12 @@ public class JwtServiceImplUnitTest {
     private JwtServiceImpl jwtService;
 
     @Test
-    void should_returnJwtDto_when_userDetailsValid(){
-        //given
+    void generateJwtWithAuthentication_shouldReturn_jwtDtoIfUserIsValid(){
+
         Collection<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_READER"));
 
         CustomUserDetails userDetails = mock(CustomUserDetails.class);
+
         when(authentication.getPrincipal()).thenReturn(userDetails);
         when(userDetails.getAuthorities()).thenReturn((Collection)authorities);
         when(userDetails.getUsername()).thenReturn("testuser");
@@ -72,97 +63,91 @@ public class JwtServiceImplUnitTest {
         when(userDetails.getProfileName()).thenReturn("Test User");
 
         Jwt jwt = mock(Jwt.class);
-        when(jwt.getTokenValue()).thenReturn("mocked-token");
         when(jwtEncoder.encode(any(JwtEncoderParameters.class))).thenReturn(jwt);
+        when(jwt.getTokenValue()).thenReturn("mocked-token");
 
         JwtDto result = jwtService.generateJwt(authentication);
 
         assertNotNull(result);
         assertEquals("mocked-token", result.token());
+
     }
 
     @Test
-    void generateJwt_withExistingUser_returnsToken() throws GoogleLoginFailedException {
-        GoogleLoginDto googleLoginDto = new GoogleLoginDto("access-token");
+    void generateJwtWithGoogleLoginDto_shouldThrowGoogleLoginFailException_ifAccessTokenInvalid(){
+        GoogleLoginDto googleLoginDto = new GoogleLoginDto("invalidAccessToken");
 
-        GoogleInfoDto googleInfoDto = new GoogleInfoDto("sub123","Test User", "test@example.com");
-        when(googleAuthService.authenticate("access-token")).thenReturn(Optional.of(googleInfoDto));
+        when(googleAuthService.authenticate(anyString())).thenReturn(Optional.empty());
 
-        User user = new User();
-        user.setId(1L);
-        user.setEmail("test@example.com");
-        user.setProviderUniqueId("sub123");
-        user.setUsername("test@example.com");
+        assertThrows(GoogleLoginFailedException.class,() -> jwtService.generateJwt(googleLoginDto));
+    }
 
-        Profile profile = new Profile();
-        profile.setProfileName("Test User");
-        user.setProfile(profile);
+    @Test
+    void generateJwtWithGoogleLoginDto_shouldThrowUserNotFoundException_ifNoUserWithProviderUIDExists() throws UserNotFoundException {
+        GoogleLoginDto googleLoginDto = new GoogleLoginDto("validAccessToken");
+        GoogleInfoDto googleInfoDto = new GoogleInfoDto("1234","Adriel","adriel15rosario@gmail.com");
 
-        user.setAuthorities(Set.of(new Authority(com.arprojects.blog.domain.enums.Authorities.READER)));
+        when(googleAuthService.authenticate(anyString())).thenReturn(Optional.of(googleInfoDto));
+        when(userService.providerUIDExists(anyString())).thenReturn(true);
+        when(userService.getUserByProviderUID(anyString())).thenThrow(new UserNotFoundException("User not found"));
 
-        when(userDao.getUserByProviderUID("sub123")).thenReturn(Optional.of(user));
+        assertThrows(UserNotFoundException.class ,() -> jwtService.generateJwt(googleLoginDto));
+
+    }
+
+    @Test
+    void generateJwtWithGoogleLoginDto_shouldThrowEmailAlreadyExistsException_ifAnyUserAlreadyContainTheEmail(){
+        GoogleLoginDto googleLoginDto = new GoogleLoginDto("validAccessToken");
+        GoogleInfoDto googleInfoDto = new GoogleInfoDto("1234","Adriel","adriel15rosario@gmail.com");
+
+        when(googleAuthService.authenticate(anyString())).thenReturn(Optional.of(googleInfoDto));
+        when(userService.providerUIDExists(anyString())).thenReturn(false);
+        when(userService.emailExists(anyString())).thenReturn(true);
+
+        assertThrows(EmailAlreadyExistsException.class,() -> jwtService.generateJwt(googleLoginDto));
+    }
+
+    @Test
+    void generateJwtWithGoogleLoginDto_returnJwtDto_whenAccessTokenIsValidAndUserExists() throws UserNotFoundException, ProviderNotFoundException, AuthorityNotFoundException, EmailAlreadyExistsException, GoogleLoginFailedException {
+        GoogleLoginDto googleLoginDto = new GoogleLoginDto("validAccessToken");
+        GoogleInfoDto googleInfoDto = new GoogleInfoDto("1234","Adriel","adriel15rosario@gmail.com");
+        ProfileDto profileDto = new ProfileDto(1,"Adriel Rosario",LocalDate.now());
+        UserDto userDto = new UserDto(1,"adriel@gmail.com",Providers.GOOGLE,Set.of(Authorities.READER),profileDto);
+
+        when(googleAuthService.authenticate(anyString())).thenReturn(Optional.of(googleInfoDto));
+        when(userService.providerUIDExists(anyString())).thenReturn(true);
+        when(userService.getUserByProviderUID(anyString())).thenReturn(userDto);
 
         Jwt jwt = mock(Jwt.class);
-        when(jwt.getTokenValue()).thenReturn("existing-user-token");
         when(jwtEncoder.encode(any(JwtEncoderParameters.class))).thenReturn(jwt);
+        when(jwt.getTokenValue()).thenReturn("mocked-token");
 
-        JwtDto result = jwtService.generateJwt(googleLoginDto);
+        JwtDto jwtDto = jwtService.generateJwt(googleLoginDto);
 
-        assertNotNull(result);
-        assertEquals("existing-user-token", result.token());
+        assertNotNull(jwtDto);
+        assertEquals("mocked-token", jwtDto.token());
     }
 
     @Test
-    void generateJwt_withNewUser_createsUserAndReturnsToken() throws GoogleLoginFailedException {
-        GoogleLoginDto googleLoginDto = new GoogleLoginDto("access-token");
-        GoogleInfoDto googleInfoDto = new GoogleInfoDto("sub123","New User", "newuser@example.com");
+    void generateJwtWithGoogleLoginDto_returnJwtDtoAndCreateNewUser_whenAccessTokenIsValidAndUserDoesNotExists() throws ProviderNotFoundException, AuthorityNotFoundException, UserNotFoundException, EmailAlreadyExistsException, GoogleLoginFailedException {
+        GoogleLoginDto googleLoginDto = new GoogleLoginDto("validAccessToken");
+        GoogleInfoDto googleInfoDto = new GoogleInfoDto("1234","Adriel","adriel15rosario@gmail.com");
+        ProfileDto profileDto = new ProfileDto(1,"Adriel Rosario",LocalDate.now());
+        UserDto userDto = new UserDto(1,"adriel@gmail.com",Providers.GOOGLE,Set.of(Authorities.READER),profileDto);
 
-        Authority authority = new Authority(Authorities.READER);
-        authority.setId(1);
+        when(googleAuthService.authenticate(anyString())).thenReturn(Optional.of(googleInfoDto));
+        when(userService.providerUIDExists(anyString())).thenReturn(false);
+        when(userService.emailExists(anyString())).thenReturn(false);
+        when(userService.addGoogleUser(any(AddGoogleUserDto.class))).thenReturn(userDto);
 
-        Provider provider = new Provider(Providers.GOOGLE);
-        provider.setId(1);
-
-        Profile profile = new Profile(googleInfoDto.name());
-        profile.setId(1);
-
-        when(googleAuthService.authenticate("access-token")).thenReturn(Optional.of(googleInfoDto));
-        when(userDao.getUserByProviderUID("sub123")).thenReturn(Optional.empty());
-        when(authorityDao.getAuthorityByType(Authorities.READER)).thenReturn(Optional.of(authority));
-        when(providerDao.getProviderByType(Providers.GOOGLE)).thenReturn(Optional.of(provider));
-
-        doAnswer(invocationOnMock -> {
-            User createdUser = invocationOnMock.getArgument(0);
-            createdUser.setId(1);
-            createdUser.setEmail(googleInfoDto.email());
-            createdUser.setProvider(provider);
-            createdUser.setEnabled(true);
-            createdUser.setProfile(profile);
-            createdUser.setAuthorities(Set.of(authority));
-            createdUser.setProviderUniqueId(googleInfoDto.sub());
-            return null;
-        }).when(userDao).create(any(User.class));
-
-        //simulate
         Jwt jwt = mock(Jwt.class);
-        when(jwt.getTokenValue()).thenReturn("new-user-token");
         when(jwtEncoder.encode(any(JwtEncoderParameters.class))).thenReturn(jwt);
+        when(jwt.getTokenValue()).thenReturn("mocked-token");
 
-        JwtDto result = jwtService.generateJwt(googleLoginDto);
+        JwtDto jwtDto = jwtService.generateJwt(googleLoginDto);
 
-        assertNotNull(result);
-        assertEquals("new-user-token", result.token());
-        verify(userDao).create(any(User.class)); // ensure user was created
+        assertNotNull(jwtDto);
+        assertEquals("mocked-token", jwtDto.token());
     }
 
-    @Test
-    void generateJwt_withInvalidGoogleToken_throwsException() {
-        GoogleLoginDto googleLoginDto = new GoogleLoginDto("invalid-token");
-
-        when(googleAuthService.authenticate("invalid-token")).thenReturn(Optional.empty());
-
-        assertThrows(GoogleLoginFailedException.class, () -> {
-            jwtService.generateJwt(googleLoginDto);
-        });
-    }
 }

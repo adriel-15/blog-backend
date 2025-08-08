@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class AuthorityDaoImplUnitTest {
+public class AuthorityDaoJpaImplUnitTest {
 
     @Mock
     private EntityManager entityManager;
@@ -25,7 +25,7 @@ public class AuthorityDaoImplUnitTest {
     private TypedQuery<Authority> typedQuery;
 
     @InjectMocks
-    private AuthorityDaoImpl authorityDao;
+    private AuthorityDaoJpaImpl authorityDao;
 
     @Test
     void getAuthorityByType_shouldReturnAuthority_whenTypeExists(){

@@ -9,6 +9,7 @@ import com.nimbusds.jose.proc.SecurityContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -39,6 +40,7 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 @EnableConfigurationProperties({RsaKeyProperties.class})
+@EnableCaching
 public class ArBlogSecurityConfig {
 
     private final UserDetailsService customUserDetailService;

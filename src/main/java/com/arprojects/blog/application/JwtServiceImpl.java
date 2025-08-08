@@ -1,22 +1,9 @@
 package com.arprojects.blog.application;
 
-import com.arprojects.blog.domain.dtos.CustomUserDetails;
-import com.arprojects.blog.domain.dtos.GoogleInfoDto;
-import com.arprojects.blog.domain.dtos.GoogleLoginDto;
-import com.arprojects.blog.domain.dtos.JwtDto;
-import com.arprojects.blog.domain.entities.Authority;
-import com.arprojects.blog.domain.entities.Profile;
-import com.arprojects.blog.domain.entities.Provider;
-import com.arprojects.blog.domain.entities.User;
-import com.arprojects.blog.domain.enums.Authorities;
-import com.arprojects.blog.domain.enums.Providers;
-import com.arprojects.blog.domain.exceptions.AuthorityNotFoundException;
-import com.arprojects.blog.domain.exceptions.GoogleLoginFailedException;
-import com.arprojects.blog.domain.exceptions.ProviderNotFoundException;
+import com.arprojects.blog.domain.dtos.*;
+import com.arprojects.blog.domain.exceptions.*;
 import com.arprojects.blog.ports.inbound.service_contracts.JwtService;
-import com.arprojects.blog.ports.outbound.repository_contracts.AuthorityDao;
-import com.arprojects.blog.ports.outbound.repository_contracts.ProviderDao;
-import com.arprojects.blog.ports.outbound.repository_contracts.UserDao;
+import com.arprojects.blog.ports.inbound.service_contracts.UserService;
 import com.arprojects.blog.ports.outbound.service_contracts.GoogleAuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -28,8 +15,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -37,18 +22,17 @@ public class JwtServiceImpl implements JwtService {
 
     private final JwtEncoder jwtEncoder;
     private final GoogleAuthService googleAuthService;
-    private final UserDao userDao;
-    private final AuthorityDao authorityDao;
-    private final ProviderDao providerDao;
+    private final UserService userService;
 
     @Autowired
-    public JwtServiceImpl(JwtEncoder jwtEncoder,GoogleAuthService googleAuthService
-            ,UserDao userDao,AuthorityDao authorityDao, ProviderDao providerDao){
+    public JwtServiceImpl(
+            JwtEncoder jwtEncoder,
+            GoogleAuthService googleAuthService,
+            UserService userService
+    ){
         this.jwtEncoder = jwtEncoder;
         this.googleAuthService = googleAuthService;
-        this.userDao = userDao;
-        this.authorityDao = authorityDao;
-        this.providerDao = providerDao;
+        this.userService = userService;
     }
 
     @Override
@@ -60,39 +44,29 @@ public class JwtServiceImpl implements JwtService {
     }
 
     @Override
-    public JwtDto generateJwt(GoogleLoginDto googleLoginDto) throws GoogleLoginFailedException {
+    public JwtDto generateJwt(GoogleLoginDto googleLoginDto) throws GoogleLoginFailedException, UserNotFoundException, EmailAlreadyExistsException, ProviderNotFoundException, AuthorityNotFoundException {
 
         //retrieve google user info if google access token is valid
         GoogleInfoDto googleInfoDto = this.googleAuthService.authenticate(googleLoginDto.googleAccessToken())
                 .orElseThrow(() -> new GoogleLoginFailedException("Failed to retrieve google user info"));
 
-        //get user by providerUID or sub
-        Optional<User> userOptional = this.userDao.getUserByProviderUID(googleInfoDto.sub());
-
-        if(userOptional.isPresent()){
-            return buildJwtDto(userOptional.get());
+        if(userService.providerUIDExists(googleInfoDto.sub())){
+            //cache
+            UserDto userDto = userService.getUserByProviderUID(googleInfoDto.sub());
+            return buildJwtDto(userDto);
         }else{
+            //cache
+            if(userService.emailExists(googleInfoDto.email()))
+                throw new EmailAlreadyExistsException("Email already in use");
 
-            Profile profile = new Profile();
-            profile.setProfileName(googleInfoDto.name());
+            AddGoogleUserDto user = new AddGoogleUserDto(
+                    googleInfoDto.email(),
+                    googleInfoDto.sub(),
+                    true,
+                    googleInfoDto.name()
+            );
 
-            Authority authority = authorityDao.getAuthorityByType(Authorities.READER)
-                    .orElseThrow(() -> new AuthorityNotFoundException("Authority does not exists"));
-
-            Provider provider = providerDao.getProviderByType(Providers.GOOGLE)
-                    .orElseThrow(() -> new ProviderNotFoundException("Provider does not exists"));
-
-            User user = new User();
-            user.setEmail(googleInfoDto.email());
-            user.setProviderUniqueId(googleInfoDto.sub());
-            user.setEnabled(true);
-            user.setProfile(profile);
-            user.setAuthorities(Set.of(authority));
-            user.setProvider(provider);
-
-            userDao.create(user);
-
-            return buildJwtDto(user);
+            return buildJwtDto(userService.addGoogleUser(user));
         }
     }
 
@@ -120,20 +94,20 @@ public class JwtServiceImpl implements JwtService {
         return new JwtDto(tokenValue);
     }
 
-    private JwtDto buildJwtDto(User user){
+    private JwtDto buildJwtDto(UserDto userDto){
         Instant now = Instant.now();
 
-        String authorities = user.getAuthorities().stream()
-                .map(authority ->"ROLE_"+authority.getAuthority().getLabel())
+        String authorities = userDto.authorities().stream()
+                .map(authority ->"ROLE_"+authority.getLabel())
                 .collect(Collectors.joining(" "));
 
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer("self")
                 .issuedAt(now)
                 .expiresAt(now.plus(5, ChronoUnit.MINUTES))
-                .subject(user.getEmail())
-                .claim("userId", user.getId())
-                .claim("profileName",user.getProfile().getProfileName())
+                .subject(userDto.email())
+                .claim("userId", userDto.id())
+                .claim("profileName",userDto.profile().profileName())
                 .claim("authorities", authorities)
                 .build();
 
