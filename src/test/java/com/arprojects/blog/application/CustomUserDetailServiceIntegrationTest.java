@@ -1,25 +1,19 @@
-package com.arprojects.blog.adapters.inbound;
+package com.arprojects.blog.application;
 
-import com.arprojects.blog.domain.dtos.JwtDto;
+import com.arprojects.blog.domain.dtos.CustomUserDetails;
 import com.arprojects.blog.domain.entities.Authority;
 import com.arprojects.blog.domain.entities.Profile;
 import com.arprojects.blog.domain.entities.Provider;
 import com.arprojects.blog.domain.entities.User;
 import com.arprojects.blog.domain.enums.Authorities;
 import com.arprojects.blog.domain.enums.Providers;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -27,31 +21,17 @@ import java.time.LocalDateTime;
 import java.time.Month;
 import java.util.Set;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 @SpringBootTest
-@AutoConfigureMockMvc
 @ActiveProfiles("test")
-class AuthControllerIntegrationTest {
-
-    @Autowired
-    private MockMvc mockMvc;
+public class CustomUserDetailServiceIntegrationTest {
 
     @Autowired
     private EntityManager entityManager;
-
     @Autowired
-    private PasswordEncoder encoder;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @Autowired
-    private JwtDecoder jwtDecoder;
+    private CustomUserDetailService customUserDetailService;
 
     @BeforeEach
     void setUp(){
@@ -74,8 +54,9 @@ class AuthControllerIntegrationTest {
         //create and persist user
         User user = new User();
         user.setUsername("adriel15");
-        user.setPassword(encoder.encode("test123"));
+        user.setPassword("test123");
         user.setEmail("adrielTest@gmail.com");
+        user.setProviderUniqueId("provider-unique-id-mock");
         user.setEnabled(true);
         user.setCreatedAt(LocalDateTime.now());
         user.setProvider(provider);
@@ -89,31 +70,16 @@ class AuthControllerIntegrationTest {
 
     @Test
     @Transactional
-    void loginEndpoint_returnJwt_ifCredentialsAreValid() throws Exception{
-        MvcResult result =  mockMvc.perform(post("/login")
-                .with(httpBasic("adriel15","test123")))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").hasJsonPath())
-                .andReturn();
+    void loadUserByUsername_shouldReturnUserDetails_whenUserExists(){
+        CustomUserDetails userDetails = (CustomUserDetails) customUserDetailService.loadUserByUsername("adriel15");
 
-        String responseJson = result.getResponse().getContentAsString();
-
-        JwtDto jwtDto = objectMapper.readValue(responseJson, JwtDto.class);
-
-        Jwt decodedJwt = jwtDecoder.decode(jwtDto.token());
-
-        assertEquals("adriel15",decodedJwt.getSubject());
-        assertTrue(decodedJwt.getClaimAsString("authorities").contains("ROLE_ADMIN"));
-        assertNotNull(decodedJwt.getClaimAsString("userId"));
-
+        assertEquals("adriel-rosario15",userDetails.getProfileName());
+        assertEquals("adriel15",userDetails.getUsername());
     }
 
     @Test
     @Transactional
-    void loginEndpoint_returnUnauthorizedStatus_ifCredentialsAreNotValid() throws Exception{
-        mockMvc.perform(post("/login")
-                .with(httpBasic("bad","credentials")))
-                .andExpect(status().isUnauthorized());
+    void loadUserByUsername_shouldThrowUsernameNotFoundException_whenUserDoesNotExists(){
+        assertThrows(UsernameNotFoundException.class, () ->  customUserDetailService.loadUserByUsername("unknown"));
     }
-
 }

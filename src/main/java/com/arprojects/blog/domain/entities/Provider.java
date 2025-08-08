@@ -2,6 +2,7 @@ package com.arprojects.blog.domain.entities;
 
 import com.arprojects.blog.domain.enums.Providers;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
@@ -21,6 +22,10 @@ public class Provider {
     private List<User> users;
 
     public Provider() {
+    }
+
+    public Provider(Providers providerType){
+        this.providerType = providerType;
     }
 
     public int getId() {

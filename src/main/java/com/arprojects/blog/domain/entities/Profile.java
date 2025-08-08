@@ -1,19 +1,21 @@
 package com.arprojects.blog.domain.entities;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 
 @Entity
 @Table(name = "PROFILES")
-public class Profile {
+public class Profile extends Auditable<String> {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "ID")
     private long id;
 
-    @Column(name = "PROFILE_NAME")
+    @Column(name = "PROFILE_NAME", length = 200)
+    @Size(max = 200)
     private String profileName;
 
     @Column(name = "BIRTH_DATE")
@@ -23,6 +25,10 @@ public class Profile {
     private User user;
 
     public Profile() {
+    }
+
+    public Profile(String profileName) {
+        this.profileName = profileName;
     }
 
     public long getId() {

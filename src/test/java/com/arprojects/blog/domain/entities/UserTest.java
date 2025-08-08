@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class UserTest {
 
-
     @Test
     void test_userEntity_gettersAndSetters(){
         //arrange
@@ -38,6 +37,8 @@ class UserTest {
         user.setProvider(new Provider());
         user.setAuthorities(expectedAuthorities);
         user.setProfile(new Profile());
+        user.setCreatedBy(expectedUsername);
+        user.setUpdatedBy("another-user");
 
         //assert
         assertEquals(expectedId,user.getId());
@@ -52,6 +53,8 @@ class UserTest {
         assertNotNull(user.getProfile());
         assertNotNull(user.getAuthorities());
         assertEquals(3,user.getAuthorities().size());
+        assertEquals(expectedUsername,user.getCreatedBy());
+        assertEquals("another-user",user.getUpdatedBy());
 
     }
 }
