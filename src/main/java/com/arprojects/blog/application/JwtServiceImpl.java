@@ -52,7 +52,7 @@ public class JwtServiceImpl implements JwtService {
 
         if(userService.providerUIDExists(googleInfoDto.sub())){
             //cache
-            UserDto userDto = userService.getUserByProviderUID(googleInfoDto.sub());
+            UserDto userDto = userService.getByProviderUID(googleInfoDto.sub());
             return buildJwtDto(userDto);
         }else{
             //cache

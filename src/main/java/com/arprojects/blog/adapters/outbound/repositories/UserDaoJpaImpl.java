@@ -83,4 +83,13 @@ public class UserDaoJpaImpl implements UserDao {
                 .getSingleResult();
     }
 
+    @Override
+    public boolean usernameExists(String username) {
+        String query = "select count(u) > 0 from User u where u.username=:username";
+
+        return entityManager.createQuery(query, Boolean.class)
+                .setParameter("username",username)
+                .getSingleResult();
+    }
+
 }
