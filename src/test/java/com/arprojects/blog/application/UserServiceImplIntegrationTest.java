@@ -2,6 +2,7 @@ package com.arprojects.blog.application;
 
 
 import com.arprojects.blog.domain.dtos.AddGoogleUserDto;
+import com.arprojects.blog.domain.dtos.SignUpDto;
 import com.arprojects.blog.domain.dtos.UserDto;
 import com.arprojects.blog.domain.entities.Authority;
 import com.arprojects.blog.domain.entities.Profile;
@@ -9,9 +10,7 @@ import com.arprojects.blog.domain.entities.Provider;
 import com.arprojects.blog.domain.entities.User;
 import com.arprojects.blog.domain.enums.Authorities;
 import com.arprojects.blog.domain.enums.Providers;
-import com.arprojects.blog.domain.exceptions.AuthorityNotFoundException;
-import com.arprojects.blog.domain.exceptions.ProviderNotFoundException;
-import com.arprojects.blog.domain.exceptions.UserNotFoundException;
+import com.arprojects.blog.domain.exceptions.*;
 import com.arprojects.blog.ports.inbound.service_contracts.UserService;
 import com.arprojects.blog.ports.outbound.repository_contracts.UserDao;
 import jakarta.persistence.EntityManager;
@@ -29,6 +28,7 @@ import java.time.Month;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -140,10 +140,10 @@ public class UserServiceImplIntegrationTest {
         String providerUID = "provider-unique-id-mock";
 
         //first call should hit the database
-        UserDto first = userService.getUserByProviderUID(providerUID);
+        UserDto first = userService.getByProviderUID(providerUID);
 
         //second call should hit the cache
-        UserDto second = userService.getUserByProviderUID(providerUID);
+        UserDto second = userService.getByProviderUID(providerUID);
 
         verify(userDao,times(1)).getUserByProviderUID(providerUID);
 
@@ -154,7 +154,7 @@ public class UserServiceImplIntegrationTest {
     @Test
     @Transactional
     void getUserByProviderUID_throwUserNotFoundException_ifProviderUIDInvalid() throws UserNotFoundException {
-        assertThrows(UserNotFoundException.class,() -> userService.getUserByProviderUID("invalid-provider"));
+        assertThrows(UserNotFoundException.class,() -> userService.getByProviderUID("invalid-provider"));
     }
 
     @Test
@@ -231,4 +231,133 @@ public class UserServiceImplIntegrationTest {
 
         assertThrows(ProviderNotFoundException.class, () -> userService.addGoogleUser(addGoogleUserDto));
     }
+
+    @Test
+    @Transactional
+    void add_createUser_ifSignUpDtoIsValid() throws AuthorityNotFoundException, ProviderNotFoundException, UsernameAlreadyExistsException, EmailAlreadyExistsException{
+        //create and persist Authority
+        Authority authority = new Authority();
+        authority.setAuthority(Authorities.READER);
+        entityManager.persist(authority);
+
+        SignUpDto signUpDto = new SignUpDto(
+                "alex19",
+                "alex19rosario@gmail.com",
+                "Alex Rosario Sanchez",
+                LocalDate.of(2000,9,15),
+                "@AlexRosario1234"
+        );
+
+        userService.add(signUpDto);
+
+        verify(userDao,times(1)).create(any());
+    }
+
+    @Test
+    @Transactional
+    void add_throwEmailAlreadyExistsException_ifSignUpDtoContainsDuplicateEmail() throws UsernameAlreadyExistsException, ProviderNotFoundException, AuthorityNotFoundException, EmailAlreadyExistsException{
+        //create and persist Authority
+        Authority authority = new Authority();
+        authority.setAuthority(Authorities.READER);
+        entityManager.persist(authority);
+
+        SignUpDto signUpDto = new SignUpDto(
+                "alex19",
+                "adrielTest@gmail.com",
+                "Alex Rosario Sanchez",
+                LocalDate.of(2000,9,15),
+                "@AlexRosario1234"
+        );
+
+        assertThrows(EmailAlreadyExistsException.class, () -> userService.add(signUpDto));
+    }
+
+    @Test
+    @Transactional
+    void add_throwUsernameAlreadyExistsException_ifSignUpDtoContainsDuplicateUsername() throws UsernameAlreadyExistsException, ProviderNotFoundException, AuthorityNotFoundException, EmailAlreadyExistsException{
+        //create and persist Authority
+        Authority authority = new Authority();
+        authority.setAuthority(Authorities.READER);
+        entityManager.persist(authority);
+
+        SignUpDto signUpDto = new SignUpDto(
+                "adriel15",
+                "adrielTest123@gmail.com",
+                "Alex Rosario Sanchez",
+                LocalDate.of(2000,9,15),
+                "@AlexRosario1234"
+        );
+
+        assertThrows(UsernameAlreadyExistsException.class, () -> userService.add(signUpDto));
+    }
+
+    @Test
+    @Transactional
+    void add_receiveSignUpDto_throwAuthorityNotFoundException_ifAuthorityIsNotValid() throws AuthorityNotFoundException{
+        SignUpDto signUpDto = new SignUpDto(
+                "adriel1523",
+                "adrielTest123423@gmail.com",
+                "Alex Rosario Sanchez",
+                LocalDate.of(2000,9,15),
+                "@AlexRosario1234"
+        );
+
+        assertThrows(AuthorityNotFoundException.class, () -> userService.add(signUpDto));
+    }
+
+    @Test
+    @Transactional
+    void add_receiveSignUpDto_throwProviderNotFoundException_ifProviderIsNotValid() throws ProviderNotFoundException, AuthorityNotFoundException{
+        User user = entityManager.createQuery("from User where username=:username", User.class)
+                .setParameter("username","adriel15")
+                .getSingleResult();
+
+        entityManager.remove(user);
+
+        Provider provider = entityManager.createQuery("from Provider where providerType=:providerType",Provider.class)
+               .setParameter("providerType",Providers.BASIC)
+               .getSingleResult();
+
+        entityManager.remove(provider);
+
+        Authority authority = new Authority();
+        authority.setAuthority(Authorities.READER);
+        entityManager.persist(authority);
+
+        SignUpDto signUpDto = new SignUpDto(
+                "adriel1523",
+                "adrielTest12343@gmail.com",
+                "Alex Rosario Sanchez",
+                LocalDate.of(2000,9,15),
+                "@AlexRosario1234"
+        );
+
+        assertThrows(ProviderNotFoundException.class, () -> userService.add(signUpDto));
+
+    }
+
+    @Test
+    @Transactional
+    void usernameExists_returnTrue_ifExists(){
+        String username = "adriel15";
+
+        //first call should hit database
+        boolean first = userService.usernameExists(username);
+
+        //second call should hit cache
+        boolean second = userService.usernameExists(username);
+        assertTrue(second);
+
+        //verify dao is only call once
+        verify(userDao,times(1)).usernameExists(username);
+
+    }
+
+    @Test
+    @Transactional
+    void usernameExists_returnFalse_ifNotExists(){
+        boolean exists = userService.usernameExists("unknown-username");
+        assertFalse(exists);
+    }
+
 }

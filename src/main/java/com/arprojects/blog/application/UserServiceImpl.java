@@ -7,15 +7,14 @@ import com.arprojects.blog.domain.entities.Provider;
 import com.arprojects.blog.domain.entities.User;
 import com.arprojects.blog.domain.enums.Authorities;
 import com.arprojects.blog.domain.enums.Providers;
-import com.arprojects.blog.domain.exceptions.AuthorityNotFoundException;
-import com.arprojects.blog.domain.exceptions.ProviderNotFoundException;
-import com.arprojects.blog.domain.exceptions.UserNotFoundException;
+import com.arprojects.blog.domain.exceptions.*;
 import com.arprojects.blog.ports.inbound.service_contracts.AuthorityService;
 import com.arprojects.blog.ports.inbound.service_contracts.ProviderService;
 import com.arprojects.blog.ports.inbound.service_contracts.UserService;
 import com.arprojects.blog.ports.outbound.repository_contracts.UserDao;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,12 +28,19 @@ public class UserServiceImpl implements UserService {
     private final UserDao userDao;
     private final AuthorityService authorityService;
     private final ProviderService providerService;
+    private final PasswordEncoder passwordEncoder;
 
     @Autowired
-    public UserServiceImpl(UserDao userDao, AuthorityService authorityService,ProviderService providerService){
+    public UserServiceImpl(
+            UserDao userDao,
+            AuthorityService authorityService,
+            ProviderService providerService,
+            PasswordEncoder passwordEncoder
+    ){
         this.userDao = userDao;
         this.authorityService = authorityService;
         this.providerService = providerService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
@@ -51,7 +57,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Cacheable(value = "usersByProviderUID", key = "#providerUID")
-    public UserDto getUserByProviderUID(String providerUID) throws UserNotFoundException {
+    public UserDto getByProviderUID(String providerUID) throws UserNotFoundException {
 
         User user = userDao.getUserByProviderUID(providerUID)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
@@ -83,6 +89,52 @@ public class UserServiceImpl implements UserService {
         userDao.create(user);
 
         return mapFromUserToUserDto.apply(user);
+    }
+
+    @Override
+    @Transactional
+    public void add(SignUpDto signUpDto) throws EmailAlreadyExistsException, UsernameAlreadyExistsException, ProviderNotFoundException, AuthorityNotFoundException {
+
+        //verify email
+        if(this.emailExists(signUpDto.email()))
+            throw new EmailAlreadyExistsException("Email already in use");
+
+        //verify username
+        if(this.usernameExists(signUpDto.username()))
+            throw new UsernameAlreadyExistsException("Username already in use");
+
+        //map from signUpDto to User
+        User user = mapFromSignUpDtoToUser(signUpDto);
+
+        //persist user
+        userDao.create(user);
+    }
+
+    @Override
+    @Cacheable(value = "usernameExists", key = "#username")
+    public boolean usernameExists(String username) {
+        return userDao.usernameExists(username);
+    }
+
+    private User mapFromSignUpDtoToUser(SignUpDto signUpDto) throws AuthorityNotFoundException, ProviderNotFoundException {
+        User user = new User();
+        user.setUsername(signUpDto.username());
+        user.setEmail(signUpDto.email());
+        user.setEnabled(true);
+        user.setPassword(passwordEncoder.encode(signUpDto.password()));
+
+        Profile profile = new Profile();
+        profile.setBirthDate(signUpDto.birthDate());
+        profile.setProfileName(signUpDto.profileName());
+        user.setProfile(profile);
+
+        AuthorityDto authorityDto = authorityService.getByType(Authorities.READER);
+        ProviderDto providerDto = providerService.getByType(Providers.BASIC);
+
+        user.setProvider(mapFromProviderDtoToProvider.apply(providerDto));
+        user.setAuthorities(Set.of(mapFromAuthorityDtoToAuthority.apply(authorityDto)));
+
+        return user;
     }
 
     Function<User,UserDto> mapFromUserToUserDto = (user -> {

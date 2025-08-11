@@ -10,6 +10,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.validation.Validator;
 import org.springframework.web.client.RestTemplate;
 
 @Import(ArBlogSecurityConfig.class)
@@ -33,5 +34,8 @@ public class AbstractControllerUnitTest {
 
     @MockitoBean
     protected RestTemplate restTemplate;
+
+    @MockitoBean
+    protected Validator validator;
 
 }

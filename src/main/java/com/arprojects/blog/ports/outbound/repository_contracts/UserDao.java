@@ -15,4 +15,6 @@ public interface UserDao {
     boolean emailExists(String email);
 
     boolean providerUIDExists(String providerUID);
+
+    boolean usernameExists(String username);
 }

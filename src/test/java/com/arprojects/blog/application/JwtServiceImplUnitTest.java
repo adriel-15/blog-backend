@@ -4,10 +4,7 @@ import com.arprojects.blog.domain.dtos.*;
 import com.arprojects.blog.domain.enums.Authorities;
 import com.arprojects.blog.domain.enums.Providers;
 import com.arprojects.blog.domain.exceptions.*;
-import com.arprojects.blog.ports.inbound.service_contracts.AuthorityService;
-import com.arprojects.blog.ports.inbound.service_contracts.ProviderService;
 import com.arprojects.blog.ports.inbound.service_contracts.UserService;
-import com.arprojects.blog.ports.outbound.repository_contracts.UserDao;
 import com.arprojects.blog.ports.outbound.service_contracts.GoogleAuthService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,7 +23,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -89,7 +85,7 @@ public class JwtServiceImplUnitTest {
 
         when(googleAuthService.authenticate(anyString())).thenReturn(Optional.of(googleInfoDto));
         when(userService.providerUIDExists(anyString())).thenReturn(true);
-        when(userService.getUserByProviderUID(anyString())).thenThrow(new UserNotFoundException("User not found"));
+        when(userService.getByProviderUID(anyString())).thenThrow(new UserNotFoundException("User not found"));
 
         assertThrows(UserNotFoundException.class ,() -> jwtService.generateJwt(googleLoginDto));
 
@@ -116,7 +112,7 @@ public class JwtServiceImplUnitTest {
 
         when(googleAuthService.authenticate(anyString())).thenReturn(Optional.of(googleInfoDto));
         when(userService.providerUIDExists(anyString())).thenReturn(true);
-        when(userService.getUserByProviderUID(anyString())).thenReturn(userDto);
+        when(userService.getByProviderUID(anyString())).thenReturn(userDto);
 
         Jwt jwt = mock(Jwt.class);
         when(jwtEncoder.encode(any(JwtEncoderParameters.class))).thenReturn(jwt);
