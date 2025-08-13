@@ -8,7 +8,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 @Service
-@Profile({"prod"})
+@Profile("prod")
 public class EmailServiceImpl implements EmailService{
 
     private final JavaMailSender javaMailSender;
