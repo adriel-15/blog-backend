@@ -1,26 +1,23 @@
 package com.arprojects.blog.application;
 
-import com.arprojects.blog.domain.dtos.AddGoogleUserDto;
-import com.arprojects.blog.domain.dtos.AuthorityDto;
-import com.arprojects.blog.domain.dtos.ProviderDto;
-import com.arprojects.blog.domain.dtos.UserDto;
+import com.arprojects.blog.domain.dtos.*;
 import com.arprojects.blog.domain.entities.Authority;
 import com.arprojects.blog.domain.entities.Profile;
 import com.arprojects.blog.domain.entities.Provider;
 import com.arprojects.blog.domain.entities.User;
 import com.arprojects.blog.domain.enums.Authorities;
 import com.arprojects.blog.domain.enums.Providers;
-import com.arprojects.blog.domain.exceptions.AuthorityNotFoundException;
-import com.arprojects.blog.domain.exceptions.ProviderNotFoundException;
-import com.arprojects.blog.domain.exceptions.UserNotFoundException;
+import com.arprojects.blog.domain.exceptions.*;
 import com.arprojects.blog.ports.inbound.service_contracts.AuthorityService;
 import com.arprojects.blog.ports.inbound.service_contracts.ProviderService;
+import com.arprojects.blog.ports.outbound.repository_contracts.AuthorityDao;
 import com.arprojects.blog.ports.outbound.repository_contracts.UserDao;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDate;
 import java.util.Optional;
@@ -36,10 +33,16 @@ public class UserServiceImplUnitTest {
     private UserDao userDao;
 
     @Mock
+    private AuthorityDao authorityDao;
+
+    @Mock
     private AuthorityService authorityService;
 
     @Mock
     private ProviderService providerService;
+
+    @Mock
+    private PasswordEncoder passwordEncoder;
 
     @InjectMocks
     private UserServiceImpl userService;
@@ -114,7 +117,7 @@ public class UserServiceImplUnitTest {
             return exists ? Optional.of(user):Optional.empty();
         });
 
-        UserDto userdto = userService.getUserByProviderUID(validProviderUID);
+        UserDto userdto = userService.getByProviderUID(validProviderUID);
 
         assertEquals(user.getId(), userdto.id());
         assertEquals(user.getEmail(), userdto.email());
@@ -142,7 +145,7 @@ public class UserServiceImplUnitTest {
             return exists ? Optional.of(user):Optional.empty();
         });
 
-        assertThrows(UserNotFoundException.class, () -> userService.getUserByProviderUID("unknown-uid"));
+        assertThrows(UserNotFoundException.class, () -> userService.getByProviderUID("unknown-uid"));
     }
 
     @Test
@@ -218,5 +221,121 @@ public class UserServiceImplUnitTest {
         when(providerService.getByType(any(Providers.class))).thenThrow(new ProviderNotFoundException("not found"));
 
         assertThrows(ProviderNotFoundException.class,() -> userService.addGoogleUser(addGoogleUserDto));
+    }
+
+    //new tests
+    @Test
+    void add_createUser_ifSignUpDtoIsValid() throws AuthorityNotFoundException, ProviderNotFoundException, UsernameAlreadyExistsException, EmailAlreadyExistsException {
+        SignUpDto signUpDto = new SignUpDto(
+                "adrielRosario15",
+                "adriel15rosario@gmail.com",
+                "Adriel Rosario Sanchez",
+                LocalDate.of(2000,9,15),
+                "@AlexRosario1234"
+        );
+
+        AuthorityDto authorityDto = new AuthorityDto(1,Authorities.READER);
+        ProviderDto providerDto = new ProviderDto(1,Providers.BASIC);
+
+        when(userDao.usernameExists(anyString())).thenReturn(false);
+        when(userDao.emailExists(anyString())).thenReturn(false);
+        when(authorityService.getByType(any(Authorities.class))).thenReturn(authorityDto);
+        when(providerService.getByType(any(Providers.class))).thenReturn(providerDto);
+
+        userService.add(signUpDto);
+
+        verify(userDao,times(1)).create(any(User.class));
+    }
+
+    @Test
+    void add_throwEmailAlreadyExistsException_ifSignUpDtoContainsDuplicateEmail() throws UsernameAlreadyExistsException, ProviderNotFoundException, AuthorityNotFoundException, EmailAlreadyExistsException {
+        SignUpDto signUpDto = new SignUpDto(
+                "adrielRosario15",
+                "adriel15rosario@gmail.com",
+                "Adriel Rosario Sanchez",
+                LocalDate.of(2000,9,15),
+                "@AlexRosario1234"
+        );
+
+        when(userDao.emailExists(anyString())).thenReturn(true);
+
+        assertThrows(EmailAlreadyExistsException.class, () -> userService.add(signUpDto));
+    }
+
+    @Test
+    void add_throwUsernameAlreadyExistsException_ifSignUpDtoContainsDuplicateUsername() throws UsernameAlreadyExistsException, ProviderNotFoundException, AuthorityNotFoundException, EmailAlreadyExistsException {
+        SignUpDto signUpDto = new SignUpDto(
+                "adrielRosario15",
+                "adriel15rosario@gmail.com",
+                "Adriel Rosario Sanchez",
+                LocalDate.of(2000,9,15),
+                "@AlexRosario1234"
+        );
+
+        when(userDao.emailExists(anyString())).thenReturn(false);
+        when(userDao.usernameExists(anyString())).thenReturn(true);
+
+        assertThrows(UsernameAlreadyExistsException.class, () -> userService.add(signUpDto));
+    }
+
+    @Test
+    void add_receiveSignUpDto_throwAuthorityNotFoundException_ifAuthorityIsNotValid() throws AuthorityNotFoundException {
+        SignUpDto signUpDto = new SignUpDto(
+                "adrielRosario15",
+                "adriel15rosario@gmail.com",
+                "Adriel Rosario Sanchez",
+                LocalDate.of(2000,9,15),
+                "@AlexRosario1234"
+        );
+
+        when(userDao.usernameExists(anyString())).thenReturn(false);
+        when(userDao.emailExists(anyString())).thenReturn(false);
+        when(authorityService.getByType(any())).thenThrow(new AuthorityNotFoundException("not found"));
+
+        assertThrows(AuthorityNotFoundException.class,() -> userService.add(signUpDto));
+    }
+
+    @Test
+    void add_receiveSignUpDto_throwProviderNotFoundException_ifProviderIsNotValid() throws ProviderNotFoundException, AuthorityNotFoundException {
+        SignUpDto signUpDto = new SignUpDto(
+                "adrielRosario15",
+                "adriel15rosario@gmail.com",
+                "Adriel Rosario Sanchez",
+                LocalDate.of(2000,9,15),
+                "@AlexRosario1234"
+        );
+
+        AuthorityDto authorityDto = new AuthorityDto(1,Authorities.READER);
+
+        when(userDao.usernameExists(anyString())).thenReturn(false);
+        when(userDao.emailExists(anyString())).thenReturn(false);
+        when(authorityService.getByType(any())).thenReturn(authorityDto);
+        when(providerService.getByType(any())).thenThrow(new ProviderNotFoundException("not found"));
+
+        assertThrows(ProviderNotFoundException.class,() -> userService.add(signUpDto));
+    }
+
+    @Test
+    void usernameExists_returnTrue_ifExists(){
+        String validUsername = "adrielRosario";
+
+        when(userDao.usernameExists(anyString())).thenAnswer(invocation -> {
+            String username = invocation.getArgument(0);
+            return validUsername.equals(username);
+        });
+
+        assertTrue(userService.usernameExists(validUsername));
+    }
+
+    @Test
+    void usernameExists_returnFalse_ifNotExists(){
+        String validUsername = "adrielRosario";
+
+        when(userDao.usernameExists(anyString())).thenAnswer(invocation -> {
+            String username = invocation.getArgument(0);
+            return validUsername.equals(username);
+        });
+
+        assertFalse(userService.usernameExists("unknown"));
     }
 }

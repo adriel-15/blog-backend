@@ -177,4 +177,16 @@ class UserDaoJpaImplIntegrationTest {
     void providerUIDExists_shouldReturnFalse_ifProviderUIDDoesNotExists(){
         assertFalse(userDao.providerUIDExists("unknown-provider"));
     }
+
+    @Test
+    @Transactional
+    void usernameExists_shouldReturnTrue_ifUsernameExists(){
+        assertTrue(userDao.usernameExists("adriel15"));
+    }
+
+    @Test
+    @Transactional
+    void usernameExists_shouldReturnFalse_ifUsernameExists(){
+        assertFalse(userDao.usernameExists("unknown"));
+    }
 }

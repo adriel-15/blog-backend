@@ -160,4 +160,26 @@ class UserDaoJpaImplUnitTest {
 
         assertFalse(userDao.providerUIDExists("unknown"));
     }
+
+    @Test
+    void usernameExists_shouldReturnTrue_ifUsernameExists(){
+        //arrange
+        String username = "adriel14";
+
+        when(entityManager.createQuery(anyString(),eq(Boolean.class))).thenReturn(booleanTypedQuery);
+        when(booleanTypedQuery.setParameter("username",username)).thenReturn(booleanTypedQuery);
+        when(booleanTypedQuery.getSingleResult()).thenReturn(true);
+
+        assertTrue(userDao.usernameExists(username));
+    }
+
+    @Test
+    void usernameExists_shouldReturnFalse_ifUsernameExists(){
+        when(entityManager.createQuery(anyString(),eq(Boolean.class))).thenReturn(booleanTypedQuery);
+        when(booleanTypedQuery.setParameter(eq("username"),anyString())).thenReturn(booleanTypedQuery);
+        when(booleanTypedQuery.getSingleResult()).thenReturn(false);
+
+        assertFalse(userDao.usernameExists("unknown"));
+    }
+
 }
