@@ -33,4 +33,18 @@ public class EmailServiceImpl implements EmailService{
         message.setText(body);
         javaMailSender.send(message);
     }
+
+    @Override
+    public void sendResetPasswordCode(String email,String code) {
+        String body = "<h4>Reset Password Code: </h4>"+ code;
+
+        //send email logic
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom("adriel15rosario@gmail.com");
+        message.setTo(email);
+        message.setSubject("\uD83C\uDF89 ARBLOG: Reset Password Code");
+        message.setText(body);
+        javaMailSender.send(message);
+    }
+
 }

@@ -8,43 +8,56 @@ import com.arprojects.blog.domain.entities.User;
 import com.arprojects.blog.domain.enums.Authorities;
 import com.arprojects.blog.domain.enums.Providers;
 import com.arprojects.blog.domain.exceptions.*;
+import com.arprojects.blog.infrastructure.aop.aspects.EmailAspect;
 import com.arprojects.blog.ports.inbound.service_contracts.AuthorityService;
+import com.arprojects.blog.ports.inbound.service_contracts.JwtService;
 import com.arprojects.blog.ports.inbound.service_contracts.ProviderService;
 import com.arprojects.blog.ports.inbound.service_contracts.UserService;
 import com.arprojects.blog.ports.outbound.repository_contracts.UserDao;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
 public class UserServiceImpl implements UserService {
 
+    private static final Logger log = LoggerFactory.getLogger(UserServiceImpl.class);
     private final UserDao userDao;
     private final AuthorityService authorityService;
     private final ProviderService providerService;
     private final PasswordEncoder passwordEncoder;
+    private final CacheManager cacheManager;
 
     @Autowired
     public UserServiceImpl(
             UserDao userDao,
             AuthorityService authorityService,
             ProviderService providerService,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            CacheManager cacheManager
     ){
         this.userDao = userDao;
         this.authorityService = authorityService;
         this.providerService = providerService;
         this.passwordEncoder = passwordEncoder;
+        this.cacheManager = cacheManager;
     }
 
     @Override
-    @Cacheable(value = "emailExists", key = "#email")
+    @Cacheable(value = "emailExists", key = "#email", unless = "#result == false")
     public boolean emailExists(String email) {
         return userDao.emailExists(email);
     }
@@ -114,6 +127,36 @@ public class UserServiceImpl implements UserService {
     @Cacheable(value = "usernameExists", key = "#username")
     public boolean usernameExists(String username) {
         return userDao.usernameExists(username);
+    }
+
+    @Override
+    @Cacheable(value = "resetPasswordCode", key = "#email")
+    public String generateResetPasswordCode(String email) throws EmailNotFoundException {
+
+        log.info("emial esxist {}", emailExists(email));
+
+        if(!emailExists(email))
+            throw new EmailNotFoundException("Email "+email+" is not valid.");
+
+        String resetCode = UUID.randomUUID().toString();
+
+        log.info("Email: {} reset code {}", email, resetCode);
+
+        return resetCode;
+    }
+
+    @Override
+    public void updatePassword(String password, Authentication authentication) {
+        Jwt jwt = (Jwt) authentication.getPrincipal();
+
+        boolean reset = jwt.getClaim("reset");
+        String email = jwt.getSubject();
+
+        //if reset null throw and exception
+        userDao.updateUserPasswordByEmail(new UpdateUserPasswordDto(email,password));
+
+        Cache cache = cacheManager.getCache("resetPasswordCode");
+        if (cache != null) cache.evict(email);
     }
 
     private User mapFromSignUpDtoToUser(SignUpDto signUpDto) throws AuthorityNotFoundException, ProviderNotFoundException {

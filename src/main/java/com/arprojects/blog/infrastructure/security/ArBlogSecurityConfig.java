@@ -100,6 +100,9 @@ public class ArBlogSecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/").permitAll()
                         .requestMatchers(HttpMethod.POST, "/google").permitAll()
                         .requestMatchers(HttpMethod.POST, "/signup").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/get-reset-password-code").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/verify-reset-password-code").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/update-password").authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))

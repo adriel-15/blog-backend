@@ -1,5 +1,6 @@
 package com.arprojects.blog.adapters.outbound.repositories;
 
+import com.arprojects.blog.domain.dtos.UpdateUserPasswordDto;
 import com.arprojects.blog.domain.entities.User;
 
 import com.arprojects.blog.ports.outbound.repository_contracts.UserDao;
@@ -90,6 +91,17 @@ public class UserDaoJpaImpl implements UserDao {
         return entityManager.createQuery(query, Boolean.class)
                 .setParameter("username",username)
                 .getSingleResult();
+    }
+
+    @Override
+    @Transactional
+    public void updateUserPasswordByEmail(UpdateUserPasswordDto updateUserPasswordDto) {
+        String query = "update User u set u.password=:password where u.email=:email";
+
+        entityManager.createQuery(query)
+                .setParameter("password",updateUserPasswordDto.password())
+                .setParameter("email",updateUserPasswordDto.email())
+                .executeUpdate();
     }
 
 }
