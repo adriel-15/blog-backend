@@ -1,5 +1,6 @@
 package com.arprojects.blog.ports.outbound.repository_contracts;
 
+import com.arprojects.blog.domain.dtos.UpdateUserPasswordDto;
 import com.arprojects.blog.domain.entities.User;
 import com.arprojects.blog.domain.exceptions.*;
 
@@ -17,4 +18,6 @@ public interface UserDao {
     boolean providerUIDExists(String providerUID);
 
     boolean usernameExists(String username);
+
+    void updateUserPasswordByEmail(UpdateUserPasswordDto updateUserPasswordDto);
 }

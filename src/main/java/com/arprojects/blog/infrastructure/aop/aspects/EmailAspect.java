@@ -28,10 +28,23 @@ public class EmailAspect {
     @Pointcut("execution(public void com.arprojects.blog.ports.inbound.service_contracts.UserService.add(..))")
     private void forSignUpMethod(){}
 
+    @Pointcut("execution(public String com.arprojects.blog.ports.inbound.service_contracts.UserService.generateResetPasswordCode(..))")
+    private void resetPasswordCode(){}
+
     @AfterReturning("forSignUpMethod()")
     public void afterReturningSignUpAdvice(JoinPoint joinPoint){
         log.info("📩 EmailAspect triggered after add() method.");
         SignUpDto signUpDto = (SignUpDto) joinPoint.getArgs()[0];
         emailService.sendSignUpEmail(signUpDto);
+    }
+
+    @AfterReturning(
+            pointcut = "resetPasswordCode()",
+            returning = "result"
+    )
+    public void afterReturningResetPasswordCode(JoinPoint joinPoint, String result){
+        log.info("📩 EmailAspect triggered after resetPasswordCode() method.");
+        String email = joinPoint.getArgs()[0].toString();
+        emailService.sendResetPasswordCode(email,result); //result is the code the service return
     }
 }

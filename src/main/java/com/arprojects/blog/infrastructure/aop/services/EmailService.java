@@ -4,4 +4,5 @@ import com.arprojects.blog.domain.dtos.SignUpDto;
 
 public interface EmailService {
     void sendSignUpEmail(SignUpDto signUpDto);
+    void sendResetPasswordCode(String email,String code);
 }

@@ -12,4 +12,9 @@ public class MockEmailServiceImpl implements EmailService {
     public void sendSignUpEmail(SignUpDto signUpDto) {
 
     }
+
+    @Override
+    public void sendResetPasswordCode(String email, String code) {
+
+    }
 }
