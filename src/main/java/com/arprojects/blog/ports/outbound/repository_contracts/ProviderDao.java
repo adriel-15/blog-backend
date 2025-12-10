@@ -8,4 +8,8 @@ import java.util.Optional;
 public interface ProviderDao {
 
     Optional<Provider> getProviderByType(Providers providers);
+
+    void create(Provider provider);
+
+    void deleteAll();
 }

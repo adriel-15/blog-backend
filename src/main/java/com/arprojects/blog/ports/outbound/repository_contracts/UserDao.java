@@ -20,4 +20,6 @@ public interface UserDao {
     boolean usernameExists(String username);
 
     void updateUserPasswordByEmail(UpdateUserPasswordDto updateUserPasswordDto);
+
+    void deleteAll();
 }

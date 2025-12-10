@@ -104,4 +104,10 @@ public class UserDaoJpaImpl implements UserDao {
                 .executeUpdate();
     }
 
+    @Override
+    @Transactional
+    public void deleteAll() {
+        entityManager.createQuery("delete from User").executeUpdate();
+    }
+
 }

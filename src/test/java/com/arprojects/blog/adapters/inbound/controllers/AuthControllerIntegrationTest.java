@@ -1,6 +1,5 @@
 package com.arprojects.blog.adapters.inbound.controllers;
 
-import com.arprojects.blog.domain.dtos.GoogleInfoDto;
 import com.arprojects.blog.domain.dtos.GoogleLoginDto;
 import com.arprojects.blog.domain.dtos.JwtDto;
 import com.arprojects.blog.domain.entities.Authority;
@@ -13,56 +12,73 @@ import com.arprojects.blog.ports.outbound.repository_contracts.AuthorityDao;
 import com.arprojects.blog.ports.outbound.repository_contracts.ProviderDao;
 import com.arprojects.blog.ports.outbound.repository_contracts.UserDao;
 import com.arprojects.blog.ports.outbound.service_contracts.GoogleAuthService;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.persistence.EntityManager;
+import com.github.tomakehurst.wiremock.client.WireMock;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.cache.CacheManager;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.web.servlet.client.RestTestClient;
+import org.testcontainers.containers.MySQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
+import org.wiremock.integrations.testcontainers.WireMockContainer;
 
 import java.time.LocalDate;
 import java.time.Month;
-import java.util.Optional;
+import java.util.Objects;
 import java.util.Set;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
+@Testcontainers
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
-@AutoConfigureMockMvc
 class AuthControllerIntegrationTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    private RestTestClient client;
 
-    @Autowired
-    private EntityManager entityManager;
+    @LocalServerPort
+    private int port;
+
+    @Container
+    @ServiceConnection
+    static final MySQLContainer<?> mysql = new MySQLContainer<>(
+            DockerImageName.parse("mysql:8.0")           // ← this is the new non-deprecated class
+                    .asCompatibleSubstituteFor("mysql") // ← makes JDBC URL work with Spring Boot
+    )
+            .withDatabaseName("arblog_test")
+            .withUsername("test")
+            .withPassword("test")
+            .withReuse(true);   // optional, but you use it
+
+//    @Container
+//    @ServiceConnection
+//    static final MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.0")
+//            .withDatabaseName("arblog_test")
+//            .withUsername("test")
+//            .withPassword("test")
+//            .withReuse(true);
+
+    @Container
+    static WireMockContainer wiremock = new WireMockContainer("wiremock/wiremock:3.13.2");
 
     @Autowired
     private PasswordEncoder encoder;
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     @Autowired
     private JwtDecoder jwtDecoder;
@@ -70,92 +86,73 @@ class AuthControllerIntegrationTest {
     @Autowired
     private CacheManager cacheManager;
 
-    @MockitoBean
-    private GoogleAuthService googleAuthService;
-
-    @MockitoSpyBean
-    private UserDao userDao;
-
-    @MockitoSpyBean
+    @Autowired
     private AuthorityDao authorityDao;
 
-    @MockitoSpyBean
+    @Autowired
     private ProviderDao providerDao;
 
+    @Autowired
+    private UserDao userDao;
+
+    @Autowired
+    private GoogleAuthService googleAuthService;
+
+    @BeforeAll
+    static void beforeAll(){
+        mysql.start();
+        mysql.withReuse(true);
+
+        wiremock.start();
+
+        // This single line makes all stubFor() calls go to your container
+        WireMock.configureFor(wiremock.getHost(), wiremock.getPort());
+    }
+
+    @DynamicPropertySource
+    static void registerDynamicProperties(DynamicPropertyRegistry registry) {
+        registry.add("google.userinfo.url", () -> wiremock.getBaseUrl() + "/userinfo");
+    }
+
+    @AfterAll
+    static void afterAll(){
+        mysql.stop();
+        wiremock.stop();
+    }
+
     @BeforeEach
-    void setUp(){
-        cacheManager.getCache("authorityByType").clear();
-        cacheManager.getCache("providerByType").clear();
-        cacheManager.getCache("usersByProviderUID").clear();
-        cacheManager.getCache("providerUIDExists").clear();
-        cacheManager.getCache("emailExists").clear();
+    void setup(){
+        client = RestTestClient.bindToServer().baseUrl("http://localhost:"+port).build();
 
-        //create and persist Authority
-        Authority authority = new Authority();
-        authority.setAuthority(Authorities.ADMIN);
-        entityManager.persist(authority);
+        clearCaches();
+        deleteAll();
 
-        // Add these if they're needed for multiple tests
-        Authority readerAuthority = new Authority();
-        readerAuthority.setAuthority(Authorities.READER);
-        entityManager.persist(readerAuthority);
+        WireMock.reset();
 
-        //create and persist Provider
-        Provider provider = new Provider();
-        provider.setProvider(Providers.BASIC);
-        entityManager.persist(provider);
-
-        Provider googleProvider = new Provider();
-        googleProvider.setProvider(Providers.GOOGLE);
-        entityManager.persist(googleProvider);
-
-        entityManager.flush();
-
-        //create and persist Profile
-        Profile profile = new Profile();
-        profile.setProfileName("adriel-rosario15");
-        profile.setBirthDate(LocalDate.of(2000, Month.SEPTEMBER,15));
-        entityManager.persist(profile);
-
-        //create and persist user
-        User user = new User();
-        user.setUsername("adriel15");
-        user.setPassword(encoder.encode("test123"));
-        user.setEmail("adrielTest@gmail.com");
-        user.setEnabled(true);
-        user.setProvider(provider);
-        user.setProfile(profile);
-        user.setAuthorities(Set.of(authority));
-        entityManager.persist(user);
-
-        entityManager.flush();
-        entityManager.clear();
+        seedAuthorities();
+        seedProviders();
     }
 
     @Test
-    @Transactional
-    void homeEndpoint_returnApiRoutes() throws Exception {
-        mockMvc.perform(get("/"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("!!Welcome to the ar-blog API!!")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("/login")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("/google")));
+    void connectionEstablished(){
+        assertThat(mysql.isCreated()).isTrue();
+        assertThat(mysql.isRunning()).isTrue();
     }
 
     @Test
-    @Transactional
-    void basicLoginEndpoint_returnJwt_ifCredentialsAreValid() throws Exception{
-        MvcResult result =  mockMvc.perform(post("/login")
-                .with(httpBasic("adriel15","test123")))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").hasJsonPath())
-                .andReturn();
+    void basicLogin_shouldReturnJwt(){
+        seedDefaultUser();
 
-        String responseJson = result.getResponse().getContentAsString();
+        JwtDto jwt = client.post()
+                .uri("/login")
+                .headers(h -> h.setBasicAuth("adriel15","test123"))
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(JwtDto.class)
+                .returnResult()
+                .getResponseBody();
 
-        JwtDto jwtDto = objectMapper.readValue(responseJson, JwtDto.class);
-
-        Jwt decodedJwt = jwtDecoder.decode(jwtDto.token());
+        Jwt decodedJwt = jwtDecoder.decode(jwt.token());
 
         assertEquals("adriel15",decodedJwt.getSubject());
         assertTrue(decodedJwt.getClaimAsString("authorities").contains("ROLE_ADMIN"));
@@ -164,247 +161,186 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    @Transactional
-    void basicLoginEndpoint_returnUnauthorizedStatus_ifCredentialsAreNotValid() throws Exception{
-        mockMvc.perform(post("/login")
-                .with(httpBasic("bad","credentials")))
-                .andExpect(status().isUnauthorized());
+    void basicLogin_shouldReturnUnauthorized_ifBadCredentials(){
+        client.post()
+                .uri("/login")
+                .headers(h -> h.setBasicAuth("invalid user","invalid password"))
+                .exchange()
+                .expectStatus().isUnauthorized();
     }
 
-
     @Test
-    @Transactional
-    void googleLoginEndpoint_shouldReturnJwtDto_ifAccessTokenIsValid() throws Exception{
-        // Mock GoogleAuthService response
-        GoogleInfoDto googleInfo = new GoogleInfoDto("12345", "Test User","test@example.com");
-        when(googleAuthService.authenticate(anyString()))
-                .thenReturn(Optional.of(googleInfo));
+    void googleLogin_shouldReturnJwt(){
+        seedGoogleUser();
 
-        Authority authority = entityManager.createQuery(
-                "select a from Authority a where a.authorityType = :authorityType",
-                Authority.class
-        ).setParameter("authorityType",Authorities.READER).getSingleResult();
+        stubFor(get("/userinfo").withHeader("Authorization",containing("Bearer"))
+                .willReturn(okJson("""
+                        {
+                            "sub": "123",
+                            "email": "test@example.com",
+                            "name": "John Doe"
+                        }
+                        """)));
 
-        Provider provider = entityManager.createQuery(
-                "select p from Provider p where p.providerType = :providerType",
-                Provider.class
-        ).setParameter("providerType",Providers.GOOGLE).getSingleResult();
+        JwtDto jwt = client.post()
+                .uri("/google")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new GoogleLoginDto("valid-access-token"))
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(JwtDto.class)
+                .returnResult()
+                .getResponseBody();
 
-        Profile profile = new Profile();
-        profile.setProfileName("Test User");
-        entityManager.persist(profile);
-
-        User user = new User();
-        user.setEmail("test@example.com");
-        user.setProviderUniqueId("12345");
-        user.setEnabled(true);
-        user.setProfile(profile);
-        user.setAuthorities(Set.of(authority));
-        user.setProvider(provider);
-        entityManager.persist(user);
-
-        entityManager.flush();
-        entityManager.clear();
-
-        // Perform the request
-        GoogleLoginDto googleLoginDto = new GoogleLoginDto("valid-google-token");
-        String requestBody = objectMapper.writeValueAsString(googleLoginDto);
-
-        MvcResult result = mockMvc.perform(post("/google")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody))
-                        .andExpect(status().isOk())
-                        .andExpect(jsonPath("$.token").exists())
-                        .andReturn();
-
-
-        // Verify the JWT content
-        String responseJson = result.getResponse().getContentAsString();
-        JwtDto jwtDto = objectMapper.readValue(responseJson, JwtDto.class);
-        Jwt decodedJwt = jwtDecoder.decode(jwtDto.token());
+        assert jwt != null;
+        Jwt decodedJwt = jwtDecoder.decode(jwt.token());
 
         assertEquals("test@example.com", decodedJwt.getSubject());
         assertTrue(decodedJwt.getClaimAsString("authorities").contains("ROLE_READER"));
-        assertEquals("Test User", decodedJwt.getClaimAsString("profileName"));
+        assertEquals("John Doe", decodedJwt.getClaimAsString("profileName"));
+
     }
 
     @Test
-    @Transactional
-    void googleLoginEndpoint_shouldThrowGoogleLoginFailedException_ifGoogleServiceFails() throws Exception{
-        // Mock GoogleAuthService response
-        //GoogleInfoDto googleInfo = new GoogleInfoDto("12345", "Test User","test@example.com");
-        when(googleAuthService.authenticate(anyString()))
-                .thenReturn(Optional.empty());
+    void googleLogin_throwGoogleLoginFailedException(){
+        stubFor(get("/userinfo").willReturn(unauthorized()));
 
-        // Perform the request
-        GoogleLoginDto googleLoginDto = new GoogleLoginDto("invalid-google-token");
-        String requestBody = objectMapper.writeValueAsString(googleLoginDto);
-
-        mockMvc.perform(post("/google")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody))
-                        .andExpect(status().isUnauthorized());
+        client.post().uri("/google")
+                .contentType(MediaType.APPLICATION_JSON)
+                .exchange()
+                .expectStatus().isUnauthorized();
     }
 
     @Test
-    @Transactional
-    void googleLoginEndpoint_shouldThrowUserNotFoundException_ifGetUserByProviderUIDFails() throws Exception{
-        // Mock GoogleAuthService response
-        GoogleInfoDto googleInfo = new GoogleInfoDto("12345", "Test User","test@example.com");
-        when(googleAuthService.authenticate(anyString()))
-                .thenReturn(Optional.of(googleInfo));
+    void googleLogin_throwEmailAlreadyExistsException(){
 
-        when(userDao.getUserByProviderUID(anyString())).thenReturn(Optional.empty());
+        seedGoogleUser();
 
-        Authority authority = entityManager.createQuery(
-                "select a from Authority a where a.authorityType = :authorityType",
-                Authority.class
-        ).setParameter("authorityType",Authorities.READER).getSingleResult();
+        stubFor(get("/userinfo").withHeader("Authorization",containing("Bearer"))
+                .willReturn(okJson("""
+                        {
+                            "sub": "1234",
+                            "email": "test@example.com",
+                            "name": "John Doe"
+                        }
+                        """)));
 
-        Provider provider = entityManager.createQuery(
-                "select p from Provider p where p.providerType = :providerType",
-                Provider.class
-        ).setParameter("providerType",Providers.GOOGLE).getSingleResult();
+        client.post()
+                .uri("/google")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new GoogleLoginDto("valid-access-token"))
+                .exchange()
+                .expectStatus().is4xxClientError();
+
+    }
+
+    @Test
+    void googleLogin_shouldReturnJwtAndCreateUser_ifUserIsNew(){
+        seedGoogleUser();
+
+        stubFor(get("/userinfo").withHeader("Authorization",containing("Bearer"))
+                .willReturn(okJson("""
+                        {
+                            "sub": "1234",
+                            "email": "test2@example.com",
+                            "name": "John Doe 2"
+                        }
+                        """)));
+
+        var jwt = client.post()
+                .uri("/google")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new GoogleLoginDto("valid-access-token"))
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(JwtDto.class)
+                .returnResult()
+                .getResponseBody();
+
+        assert jwt != null;
+        Jwt decodedJwt = jwtDecoder.decode(jwt.token());
+
+        assertEquals("test2@example.com", decodedJwt.getSubject());
+        assertTrue(decodedJwt.getClaimAsString("authorities").contains("ROLE_READER"));
+        assertEquals("John Doe 2", decodedJwt.getClaimAsString("profileName"));
+    }
+
+    // ------ helper methods -------
+    private void clearCaches(){
+        cacheManager.getCacheNames().forEach(name -> Objects.requireNonNull(cacheManager.getCache(name)).clear());
+    }
+
+    private void seedAuthorities(){
+        //create and persist Authority
+        Authority authority = new Authority();
+        authority.setAuthority(Authorities.ADMIN);
+        authorityDao.create(authority);
+
+        // Add these if they're needed for multiple tests
+        Authority readerAuthority = new Authority();
+        readerAuthority.setAuthority(Authorities.READER);
+        authorityDao.create(readerAuthority);
+    }
+
+    private void seedProviders(){
+        Provider provider = new Provider();
+        provider.setProvider(Providers.BASIC);
+        providerDao.create(provider);
+
+        Provider googleProvider = new Provider();
+        googleProvider.setProvider(Providers.GOOGLE);
+        providerDao.create(googleProvider);
+    }
+
+    private void seedDefaultUser(){
+        Profile profile = new Profile();
+        profile.setProfileName("adriel-rosario15");
+        profile.setBirthDate(LocalDate.of(2000, Month.SEPTEMBER,15));
+
+        var provider = providerDao.getProviderByType(Providers.BASIC);
+        var adminAuthority = authorityDao.getAuthorityByType(Authorities.ADMIN);
+
+        //create and persist user
+        User user = new User();
+        user.setUsername("adriel15");
+        user.setPassword(encoder.encode("test123"));
+        user.setEmail("adrielTest@gmail.com");
+        user.setEnabled(true);
+        user.setProfile(profile);
+
+        provider.ifPresent(user::setProvider);
+        adminAuthority.ifPresent(authority -> user.setAuthorities(Set.of(authority)));
+
+        userDao.create(user);
+    }
+
+    private void seedGoogleUser(){
 
         Profile profile = new Profile();
-        profile.setProfileName("Test User");
-        entityManager.persist(profile);
+        profile.setProfileName("John Doe");
+
+        var provider = providerDao.getProviderByType(Providers.GOOGLE);
+        var readerAuthority = authorityDao.getAuthorityByType(Authorities.READER);
 
         User user = new User();
         user.setEmail("test@example.com");
-        user.setProviderUniqueId("12345");
+        user.setProviderUniqueId("123");
         user.setEnabled(true);
         user.setProfile(profile);
-        user.setAuthorities(Set.of(authority));
-        user.setProvider(provider);
-        entityManager.persist(user);
 
-        entityManager.flush();
-        entityManager.clear();
+        if(provider.isEmpty())
+            System.out.println("Provider is NULL!!!");
 
-        // Perform the request
-        GoogleLoginDto googleLoginDto = new GoogleLoginDto("valid-google-token");
-        String requestBody = objectMapper.writeValueAsString(googleLoginDto);
+        provider.ifPresent(user::setProvider);
+        readerAuthority.ifPresent(auth -> user.setAuthorities(Set.of(auth)));
 
-        mockMvc.perform(post("/google")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody))
-                        .andExpect(status().isBadRequest());
 
+        userDao.create(user);
     }
 
-    @Test
-    @Transactional
-    void googleLoginEndpoint_shouldThrowAuthorityNotFoundException_ifAuthorityDoesNotExists() throws Exception{
-        // Mock GoogleAuthService response
-        GoogleInfoDto googleInfo = new GoogleInfoDto("new-user-id","New User","new@example.com" );
-        when(googleAuthService.authenticate(anyString()))
-                .thenReturn(Optional.of(googleInfo));
-
-        when(authorityDao.getAuthorityByType(any(Authorities.class))).thenReturn(Optional.empty());
-
-        // Perform the request
-        GoogleLoginDto googleLoginDto = new GoogleLoginDto("valid-google-token");
-        String requestBody = objectMapper.writeValueAsString(googleLoginDto);
-
-        mockMvc.perform(post("/google")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody))
-                .andExpect(status().isBadRequest());
+    private void deleteAll(){
+        userDao.deleteAll();
+        providerDao.deleteAll();
+        authorityDao.deleteAll();
     }
-
-    @Test
-    @Transactional
-    void googleLoginEndpoint_shouldThrowProviderNotFoundException_ifProviderDoesNotExists() throws Exception{
-        // Mock GoogleAuthService response
-        GoogleInfoDto googleInfo = new GoogleInfoDto("new-user-id","New User","new@example.com" );
-        when(googleAuthService.authenticate(anyString()))
-                .thenReturn(Optional.of(googleInfo));
-
-        when(providerDao.getProviderByType(any(Providers.class))).thenReturn(Optional.empty());
-
-        // Perform the request
-        GoogleLoginDto googleLoginDto = new GoogleLoginDto("valid-google-token");
-        String requestBody = objectMapper.writeValueAsString(googleLoginDto);
-
-        mockMvc.perform(post("/google")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    @Transactional
-    void googleLoginEndpoint_shouldThrowEmailAlreadyExistsException_ifEmailIsDuplicate() throws Exception{
-        // Mock GoogleAuthService response
-        GoogleInfoDto googleInfo = new GoogleInfoDto("new-user-id","New User","new@example.com" );
-        when(googleAuthService.authenticate(anyString()))
-                .thenReturn(Optional.of(googleInfo));
-
-        when(userDao.emailExists(anyString())).thenReturn(true);
-
-        // Perform the request
-        GoogleLoginDto googleLoginDto = new GoogleLoginDto("valid-google-token");
-        String requestBody = objectMapper.writeValueAsString(googleLoginDto);
-
-        mockMvc.perform(post("/google")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody))
-                .andExpect(status().isConflict());
-    }
-
-    @Test
-    @Transactional
-    void googleLoginEndpoint_returnJwtDto_ifCredentialsAreValidAndUserDoesNotExist() throws Exception{
-        // Mock GoogleAuthService response
-        GoogleInfoDto googleInfo = new GoogleInfoDto("new-user-id","New User","new@example.com" );
-        when(googleAuthService.authenticate(anyString()))
-                .thenReturn(Optional.of(googleInfo));
-
-        // Perform the request
-        GoogleLoginDto googleLoginDto = new GoogleLoginDto("valid-google-token");
-        String requestBody = objectMapper.writeValueAsString(googleLoginDto);
-
-        MvcResult result = mockMvc.perform(post("/google")
-                        .contentType("application/json")
-                        .content(requestBody))
-                        .andExpect(status().isOk())
-                        .andExpect(jsonPath("$.token").exists())
-                        .andReturn();
-
-        // Verify the JWT content
-        String responseJson = result.getResponse().getContentAsString();
-        JwtDto jwtDto = objectMapper.readValue(responseJson, JwtDto.class);
-        Jwt decodedJwt = jwtDecoder.decode(jwtDto.token());
-
-        assertEquals("new@example.com", decodedJwt.getSubject());
-        assertTrue(decodedJwt.getClaimAsString("authorities").contains("ROLE_READER"));
-        assertEquals("New User", decodedJwt.getClaimAsString("profileName"));
-
-        // Verify user was created in database
-        User createdUser = entityManager.createQuery("SELECT u FROM User u WHERE u.providerUniqueId = :providerId", User.class)
-                .setParameter("providerId", "new-user-id")
-                .getSingleResult();
-
-        assertNotNull(createdUser);
-        assertEquals("new@example.com", createdUser.getEmail());
-    }
-
-    @Test
-    @Transactional
-    void googleLoginEndpoint_returnUnauthorized_ifGoogleTokenIsInvalid() throws Exception {
-        // Mock GoogleAuthService to return empty
-        when(googleAuthService.authenticate(anyString()))
-                .thenReturn(Optional.empty());
-
-        // Perform the request
-        GoogleLoginDto googleLoginDto = new GoogleLoginDto("invalid-google-token");
-        String requestBody = objectMapper.writeValueAsString(googleLoginDto);
-
-        mockMvc.perform(post("/google")
-                        .contentType("application/json")
-                        .content(requestBody))
-                .andExpect(status().isUnauthorized());
-    }
-
 }

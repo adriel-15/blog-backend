@@ -1,5 +1,7 @@
 package com.arprojects.blog.infrastructure.security;
 
+import com.arprojects.blog.application.CustomUserDetailService;
+import com.arprojects.blog.ports.outbound.repository_contracts.UserDao;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
@@ -14,11 +16,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.authentication.AuthenticationProvider;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -30,6 +33,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -43,59 +47,60 @@ import java.util.List;
 @EnableCaching
 public class ArBlogSecurityConfig {
 
-    private final UserDetailsService customUserDetailService;
-
+    //private final UserDetailsService customUserDetailService;
+    private final UserDao userDao;
     private final RsaKeyProperties rsaKeys;
 
     @Value("${web-client-url}")
     private String webClientUrl;
 
     @Autowired
-    public ArBlogSecurityConfig(UserDetailsService customUserDetailService, RsaKeyProperties rsaKeys){
+    public ArBlogSecurityConfig(UserDao userDao, RsaKeyProperties rsaKeys){
         this.rsaKeys = rsaKeys;
-        this.customUserDetailService = customUserDetailService;
+        this.userDao = userDao;
     }
 
-    @Bean
-    public UserDetailsService userDetailsService(){
-        return this.customUserDetailService;
-    }
+    // ========= AUTHENTICATION SETUP (NEW SPRING SECURITY 7 WAY) =========
 
     @Bean
-    public AuthenticationProvider authenticationProvider(){
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(this.customUserDetailService);
-        provider.setPasswordEncoder(this.passwordEncoder());
-        return provider;
+    public UserDetailsService userDetailsService() {
+        return new CustomUserDetailService(userDao);
     }
+
+    // Spring Security 7: authentication must be built via AuthenticationConfiguration
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+        return configuration.getAuthenticationManager();
+    }
+
+    // ========= FILTER CHAIN FOR BASIC LOGIN =========
 
     @Bean
     @Order(1)
-    public SecurityFilterChain basicFilterChain(HttpSecurity http) throws Exception{
-
-        return http
-                .securityMatcher("/login")
+    public SecurityFilterChain basicChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatchers(matchers -> matchers
+                        .requestMatchers("/login")
+                )
                 .csrf(csrf -> csrf.disable())
-                .cors(Customizer.withDefaults())
-                .authorizeHttpRequests(auth -> auth
-                        .anyRequest().permitAll()
-                )
-                .authenticationProvider(authenticationProvider())
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
                 .httpBasic(Customizer.withDefaults())
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
-                .build();
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+
+        return http.build();
     }
+
+    // ========= FILTER CHAIN FOR JWT PROTECTED ROUTES =========
 
     @Bean
     @Order(2)
-    public SecurityFilterChain jwtFilterChain(HttpSecurity http) throws Exception{
+    public SecurityFilterChain jwtFilterChain(HttpSecurity http) throws Exception {
 
-        return http
-                .securityMatcher("/**")
+        http
+                .securityMatchers(matchers -> matchers
+                        .requestMatchers("/**")
+                )
                 .csrf(csrf -> csrf.disable())
-                .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, "/").permitAll()
                         .requestMatchers(HttpMethod.POST, "/google").permitAll()
@@ -107,16 +112,19 @@ public class ArBlogSecurityConfig {
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
                 )
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
-                .build();
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+
+        return http.build();
     }
+
+    // ========= PASSWORD ENCODER =========
 
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
+
+    // ========= JWT AUTHORITY MAPPING =========
 
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
@@ -128,6 +136,8 @@ public class ArBlogSecurityConfig {
         jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
         return jwtAuthenticationConverter;
     }
+
+    // ========= JWT DECODER/ENCODER =========
 
     @Bean
     JwtDecoder jwtDecoder() {
@@ -142,10 +152,12 @@ public class ArBlogSecurityConfig {
         return new NimbusJwtEncoder(jwks);
     }
 
+    // ========= CORS CONFIG =========
+
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of(this.webClientUrl)); // Angular app
+        configuration.setAllowedOrigins(List.of(this.webClientUrl));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
