@@ -7,4 +7,6 @@ import java.util.Optional;
 
 public interface AuthorityDao {
     Optional<Authority> getAuthorityByType(Authorities authorityType);
+    void create(Authority authority);
+    void deleteAll();
 }

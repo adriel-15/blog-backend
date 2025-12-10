@@ -1,4 +1,4 @@
-package com.arprojects.blog.infrastructure.services;
+package com.arprojects.blog.infrastructure.aop.services;
 
 import com.arprojects.blog.domain.dtos.SignUpDto;
 import com.arprojects.blog.infrastructure.aop.services.EmailService;

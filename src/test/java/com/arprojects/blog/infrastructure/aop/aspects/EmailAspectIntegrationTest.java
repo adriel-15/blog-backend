@@ -1,4 +1,4 @@
-package com.arprojects.blog.infrastructure.aspects;
+package com.arprojects.blog.infrastructure.aop.aspects;
 
 import com.arprojects.blog.domain.dtos.SignUpDto;
 import com.arprojects.blog.domain.entities.Authority;

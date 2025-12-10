@@ -6,6 +6,7 @@ import com.arprojects.blog.ports.outbound.repository_contracts.AuthorityDao;
 import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
@@ -33,5 +34,17 @@ public class AuthorityDaoJpaImpl implements AuthorityDao {
         }catch (Exception ex){
             return Optional.empty();
         }
+    }
+
+    @Override
+    @Transactional
+    public void create(Authority authority) {
+        entityManager.persist(authority);
+    }
+
+    @Override
+    @Transactional
+    public void deleteAll() {
+        entityManager.createQuery("delete from Authority").executeUpdate();
     }
 }
