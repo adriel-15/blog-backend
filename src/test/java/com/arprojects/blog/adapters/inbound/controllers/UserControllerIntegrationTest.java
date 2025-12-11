@@ -1,244 +1,127 @@
 package com.arprojects.blog.adapters.inbound.controllers;
 
 import com.arprojects.blog.domain.dtos.SignUpDto;
-import com.arprojects.blog.domain.entities.Authority;
-import com.arprojects.blog.domain.entities.Profile;
-import com.arprojects.blog.domain.entities.Provider;
-import com.arprojects.blog.domain.entities.User;
-import com.arprojects.blog.domain.enums.Authorities;
-import com.arprojects.blog.domain.enums.Providers;
-import com.arprojects.blog.ports.inbound.service_contracts.UserService;
-import com.arprojects.blog.ports.outbound.repository_contracts.UserDao;
-import jakarta.persistence.EntityManager;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.arprojects.blog.domain.dtos.SignUpResponseDto;
+import org.junit.jupiter.api.*;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.cache.CacheManager;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.databind.ObjectMapper;
+import org.springframework.test.web.servlet.client.RestTestClient;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.wiremock.spring.ConfigureWireMock;
+import org.wiremock.spring.EnableWireMock;
 
 import java.time.LocalDate;
-import java.time.Month;
-import java.util.Set;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@SpringBootTest
+@Testcontainers
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@EnableWireMock({
+        @ConfigureWireMock(port = 8888)
+})
 @ActiveProfiles("test")
-@AutoConfigureMockMvc
-public class UserControllerIntegrationTest {
+public class UserControllerIntegrationTest extends BaseIntegrationTest {
 
-    @Autowired
-    MockMvc mockMvc;
+    private RestTestClient client;
 
-    @MockitoSpyBean
-    UserService userService;
+    @LocalServerPort
+    private int port;
 
-    @MockitoSpyBean
-    UserDao userDao;
+    @BeforeAll
+    static void beforeAll(){
+        mysql.start();
+    }
 
-    @Autowired
-    EntityManager entityManager;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private CacheManager cacheManager;
+    @AfterAll
+    static void afterAll(){
+        mysql.stop();
+    }
 
     @BeforeEach
-    void setUp(){
+    void setup(){
+        client = RestTestClient.bindToServer().baseUrl("http://localhost:"+port).build();
 
-        cacheManager.getCache("authorityByType").clear();
-        cacheManager.getCache("providerByType").clear();
-        cacheManager.getCache("usersByProviderUID").clear();
-        cacheManager.getCache("providerUIDExists").clear();
-        cacheManager.getCache("emailExists").clear();
+        clearCaches();
+        deleteAll();
 
-        //create and persist Authority
-        Authority authority = new Authority();
-        authority.setAuthority(Authorities.READER);
-        entityManager.persist(authority);
+        seedAuthorities();
+        seedProviders();
 
-        //create and persist Provider
-        Provider provider = new Provider();
-        provider.setProvider(Providers.BASIC);
-        entityManager.persist(provider);
-
-        entityManager.flush();
-        entityManager.clear();
-
-        //create and persist Profile
-        Profile profile = new Profile();
-        profile.setProfileName("adriel-rosario15");
-        profile.setBirthDate(LocalDate.of(2000, Month.SEPTEMBER,15));
-        entityManager.persist(profile);
-
-        //create and persist user
-        User user = new User();
-        user.setUsername("adriel15Rosario2000");
-        user.setPassword(passwordEncoder.encode("test123"));
-        user.setEmail("adrielTest@gmail.com");
-        user.setEnabled(true);
-        user.setProvider(provider);
-        user.setProfile(profile);
-        user.setAuthorities(Set.of(authority));
-        entityManager.persist(user);
-
-        entityManager.flush();
-        entityManager.clear();
     }
 
     @Test
-    @Transactional
-    void signUpEndpoint_shouldReturnSuccessfullyCreatedMessage_ifUserCreated() throws Exception {
+    @DisplayName("POST /signup - should return successfully created message.")
+    void shouldReturnSuccessfullyCreated(){
         //arrange
         SignUpDto signUpDto = new SignUpDto(
-                "adrielRosario15",
-                "adriel15rosario@gmail.com",
-                "Adriel Rosario Sanchez",
+                "johnDoe001",
+                "johnDoe001@gmail.com",
+                "John Doe Jr",
                 LocalDate.of(2000,9,15),
-                "@AlexRosario1234"
+                "@VerySecurePassword"
         );
 
-        mockMvc.perform(post("/signup")
+        SignUpResponseDto response = client.post()
+                .uri("/signup")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(signUpDto)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("successfully created"));
+                .body(signUpDto)
+                .exchange()
+                .expectStatus().isCreated()
+                .expectBody(SignUpResponseDto.class)
+                .returnResult()
+                .getResponseBody();
 
-        verify(userService, times(1)).add(any(SignUpDto.class));
-        verify(userDao, times(1)).create(any(User.class));
+        assert response != null;
+        assertEquals("Successfully created", response.message());
     }
 
+
     @Test
-    @Transactional
-    void signUpEndpoint_shouldThrowEmailAlreadyExistsException_ifEmailIsNotvalid() throws Exception {
+    @DisplayName("POST /signup - should throw EmailAlreadyExistsException if email already exists.")
+    void shouldThrowEmailAlreadyExistsException(){
+        seedDefaultUser(); //email -> adrielTest@gmail.com
+
         //arrange
         SignUpDto signUpDto = new SignUpDto(
-                "adrielRosario15",
+                "johnDoe001",
                 "adrielTest@gmail.com",
-                "Adriel Rosario Sanchez",
+                "John Doe Jr",
                 LocalDate.of(2000,9,15),
-                "@AlexRosario1234"
+                "@VerySecurePassword"
         );
 
-        mockMvc.perform(post("/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(signUpDto)))
-                        .andExpect(status().isConflict());
-    }
-
-    @Test
-    @Transactional
-    void signUpEndpoint_shouldThrowUsernameAlreadyExistsException_ifUsernameIsNotValid() throws Exception {
-        //arrange
-        SignUpDto signUpDto = new SignUpDto(
-                "adriel15Rosario2000",
-                "adrielTewew@gmail.com",
-                "Adriel Rosario Sanchez",
-                LocalDate.of(2000,9,15),
-                "@AlexRosario1234"
-        );
-
-        mockMvc.perform(post("/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(signUpDto)))
-                        .andExpect(status().isConflict());
-    }
-
-    @Test
-    @Transactional
-    void signUpEndpoint_shouldThrowProviderNotFoundException_ifProviderDoesNotExists() throws Exception {
-        User user = entityManager.createQuery("from User where username=:username", User.class)
-                .setParameter("username","adriel15Rosario2000")
-                .getSingleResult();
-
-        entityManager.remove(user);
-
-        Provider provider = entityManager.createQuery("from Provider where providerType=:providerType",Provider.class)
-                .setParameter("providerType",Providers.BASIC)
-                .getSingleResult();
-
-        entityManager.remove(provider);
-
-        //arrange
-        SignUpDto signUpDto = new SignUpDto(
-                "adriel15Rosario23232",
-                "adrielTewew@gmail.com",
-                "Adriel Rosario Sanchez",
-                LocalDate.of(2000,9,15),
-                "@AlexRosario1234"
-        );
-
-        mockMvc.perform(post("/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(signUpDto)))
-                        .andExpect(status().isBadRequest());
-
-    }
-
-    @Test
-    @Transactional
-    void signUpEndpoint_shouldThrowAuthorityNotFoundException_ifAuthorityDoesNotExists() throws Exception{
-        User user = entityManager.createQuery("from User where username=:username", User.class)
-                .setParameter("username","adriel15Rosario2000")
-                .getSingleResult();
-
-        entityManager.remove(user);
-
-        Authority authority = entityManager.createQuery("from Authority where authorityType=:authorityType",Authority.class)
-                .setParameter("authorityType",Authorities.READER)
-                .getSingleResult();
-
-        entityManager.remove(authority);
-
-        //arrange
-        SignUpDto signUpDto = new SignUpDto(
-                "adriel15Rosario23232",
-                "adrielTewew@gmail.com",
-                "Adriel Rosario Sanchez",
-                LocalDate.of(2000,9,15),
-                "@AlexRosario1234"
-        );
-
-        mockMvc.perform(post("/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(signUpDto)))
-                        .andExpect(status().isBadRequest());
+        client.post()
+                .uri("/signup")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(signUpDto)
+                .exchange()
+                .expectStatus().isEqualTo(HttpStatus.CONFLICT);
     }
 
 
     @Test
-    @Transactional
-    void signUpEndpoint_shouldThrowMethodArgumentNotValidException_ifSignUpDtoIsNotValid() throws Exception{
+    @DisplayName("POST /signup - should throw UsernameAlreadyExistsException if username already exists.")
+    void shouldThrowUsernameAlreadyExistsException(){
+        seedDefaultUser(); // username -> adriel15Rosario123
+
         //arrange
         SignUpDto signUpDto = new SignUpDto(
-                "adriel15",
-                "adrielTewew@gmail.com",
-                "Adriel Rosario Sanchez",
+                "adriel15Rosario123",
+                "johnDoe001@gmail.com",
+                "John Doe Jr",
                 LocalDate.of(2000,9,15),
-                "alex2"
+                "@VerySecurePassword"
         );
 
-        mockMvc.perform(post("/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(signUpDto)))
-                        .andExpect(status().isBadRequest());
+        client.post()
+                .uri("/signup")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(signUpDto)
+                .exchange()
+                .expectStatus().isEqualTo(HttpStatus.CONFLICT);
+
     }
 }

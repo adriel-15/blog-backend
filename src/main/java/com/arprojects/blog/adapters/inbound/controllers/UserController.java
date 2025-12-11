@@ -2,20 +2,19 @@ package com.arprojects.blog.adapters.inbound.controllers;
 
 import com.arprojects.blog.domain.dtos.JwtDto;
 import com.arprojects.blog.domain.dtos.SignUpDto;
+import com.arprojects.blog.domain.dtos.SignUpResponseDto;
 import com.arprojects.blog.domain.dtos.VerifyResetPasswordCodeDto;
 import com.arprojects.blog.domain.exceptions.*;
 import com.arprojects.blog.ports.inbound.service_contracts.JwtService;
 import com.arprojects.blog.ports.inbound.service_contracts.UserService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.Map;
-import java.util.UUID;
 
 @RestController
 public class UserController {
@@ -31,7 +30,8 @@ public class UserController {
     }
 
     @PostMapping("/signup")
-    public Map<String, String> signUp(@Valid @RequestBody SignUpDto signUpDto) throws
+    @ResponseStatus(HttpStatus.CREATED)
+    public SignUpResponseDto signUp(@Valid @RequestBody SignUpDto signUpDto) throws
             EmailAlreadyExistsException,
             UsernameAlreadyExistsException,
             ProviderNotFoundException,
@@ -40,7 +40,7 @@ public class UserController {
 
         userService.add(signUpDto);
 
-        return Map.of("message","successfully created");
+        return new SignUpResponseDto("Successfully created");
     }
 
     @PostMapping("/get-reset-password-code")
