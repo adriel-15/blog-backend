@@ -122,17 +122,9 @@
 		</dependency>
 
 		<dependency>
-			<groupId>org.wiremock</groupId>
-			<artifactId>wiremock</artifactId>
-			<version>3.13.2</version>
-			<scope>test</scope>
-		</dependency>
-
-
-		<dependency>
-			<groupId>org.wiremock.integrations.testcontainers</groupId>
-			<artifactId>wiremock-testcontainers-module</artifactId>
-			<version>1.0-alpha-15</version>
+			<groupId>org.wiremock.integrations</groupId>
+			<artifactId>wiremock-spring-boot</artifactId>
+			<version>4.0.8</version>
 			<scope>test</scope>
 		</dependency>
 

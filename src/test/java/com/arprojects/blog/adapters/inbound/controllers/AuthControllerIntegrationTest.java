@@ -12,7 +12,6 @@ import com.arprojects.blog.ports.outbound.repository_contracts.AuthorityDao;
 import com.arprojects.blog.ports.outbound.repository_contracts.ProviderDao;
 import com.arprojects.blog.ports.outbound.repository_contracts.UserDao;
 import com.arprojects.blog.ports.outbound.service_contracts.GoogleAuthService;
-import com.github.tomakehurst.wiremock.client.WireMock;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,14 +26,13 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.client.RestTestClient;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
-import org.wiremock.integrations.testcontainers.WireMockContainer;
+import org.wiremock.spring.ConfigureWireMock;
+import org.wiremock.spring.EnableWireMock;
 
 import java.time.LocalDate;
 import java.time.Month;
@@ -42,11 +40,13 @@ import java.util.Objects;
 import java.util.Set;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@EnableWireMock({
+        @ConfigureWireMock(port = 8888)
+})
 @ActiveProfiles("test")
 class AuthControllerIntegrationTest {
 
@@ -65,17 +65,6 @@ class AuthControllerIntegrationTest {
             .withUsername("test")
             .withPassword("test")
             .withReuse(true);   // optional, but you use it
-
-//    @Container
-//    @ServiceConnection
-//    static final MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.0")
-//            .withDatabaseName("arblog_test")
-//            .withUsername("test")
-//            .withPassword("test")
-//            .withReuse(true);
-
-    @Container
-    static WireMockContainer wiremock = new WireMockContainer("wiremock/wiremock:3.13.2");
 
     @Autowired
     private PasswordEncoder encoder;
@@ -102,22 +91,11 @@ class AuthControllerIntegrationTest {
     static void beforeAll(){
         mysql.start();
         mysql.withReuse(true);
-
-        wiremock.start();
-
-        // This single line makes all stubFor() calls go to your container
-        WireMock.configureFor(wiremock.getHost(), wiremock.getPort());
-    }
-
-    @DynamicPropertySource
-    static void registerDynamicProperties(DynamicPropertyRegistry registry) {
-        registry.add("google.userinfo.url", () -> wiremock.getBaseUrl() + "/userinfo");
     }
 
     @AfterAll
     static void afterAll(){
         mysql.stop();
-        wiremock.stop();
     }
 
     @BeforeEach
@@ -127,16 +105,8 @@ class AuthControllerIntegrationTest {
         clearCaches();
         deleteAll();
 
-        WireMock.reset();
-
         seedAuthorities();
         seedProviders();
-    }
-
-    @Test
-    void connectionEstablished(){
-        assertThat(mysql.isCreated()).isTrue();
-        assertThat(mysql.isRunning()).isTrue();
     }
 
     @Test
