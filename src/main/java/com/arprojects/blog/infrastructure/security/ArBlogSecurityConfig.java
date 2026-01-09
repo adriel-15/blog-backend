@@ -82,6 +82,7 @@ public class ArBlogSecurityConfig {
                 .securityMatchers(matchers -> matchers
                         .requestMatchers("/login")
                 )
+                .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
                 .httpBasic(Customizer.withDefaults())
@@ -100,6 +101,7 @@ public class ArBlogSecurityConfig {
                 .securityMatchers(matchers -> matchers
                         .requestMatchers("/**")
                 )
+                .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, "/").permitAll()

@@ -21,7 +21,7 @@ public class ProviderDaoJpaImpl implements ProviderDao{
     }
 
     @Override
-    public Optional<Provider> getProviderByType(Providers providerType) {
+    public Optional<Provider> getByType(Providers providerType) {
         String query = "from Provider where providerType=:providerType";
         try{
             Provider provider = entityManager.createQuery(query,Provider.class)
@@ -36,7 +36,7 @@ public class ProviderDaoJpaImpl implements ProviderDao{
 
     @Override
     @Transactional
-    public void create(Provider provider) {
+    public void save(Provider provider) {
         entityManager.persist(provider);
     }
 

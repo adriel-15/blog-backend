@@ -8,9 +8,7 @@ import com.arprojects.blog.domain.entities.User;
 import com.arprojects.blog.domain.enums.Authorities;
 import com.arprojects.blog.domain.enums.Providers;
 import com.arprojects.blog.domain.exceptions.*;
-import com.arprojects.blog.infrastructure.aop.aspects.EmailAspect;
 import com.arprojects.blog.ports.inbound.service_contracts.AuthorityService;
-import com.arprojects.blog.ports.inbound.service_contracts.JwtService;
 import com.arprojects.blog.ports.inbound.service_contracts.ProviderService;
 import com.arprojects.blog.ports.inbound.service_contracts.UserService;
 import com.arprojects.blog.ports.outbound.repository_contracts.UserDao;
@@ -58,21 +56,21 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Cacheable(value = "emailExists", key = "#email", unless = "#result == false")
-    public boolean emailExists(String email) {
-        return userDao.emailExists(email);
+    public boolean existsByEmail(String email) {
+        return userDao.existsByEmail(email);
     }
 
     @Override
     @Cacheable(value = "providerUIDExists", key = "#providerUID")
-    public boolean providerUIDExists(String providerUID) {
-        return userDao.providerUIDExists(providerUID);
+    public boolean existsByProviderUID(String providerUID) {
+        return userDao.existsByProviderUID(providerUID);
     }
 
     @Override
     @Cacheable(value = "usersByProviderUID", key = "#providerUID")
     public UserDto getByProviderUID(String providerUID) throws UserNotFoundException {
 
-        User user = userDao.getUserByProviderUID(providerUID)
+        User user = userDao.getByProviderUID(providerUID)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
 
         return mapFromUserToUserDto.apply(user);
@@ -99,7 +97,7 @@ public class UserServiceImpl implements UserService {
         user.setAuthorities(Set.of(mapFromAuthorityDtoToAuthority.apply(authorityDto)));
         user.setProvider(mapFromProviderDtoToProvider.apply(providerDto));
 
-        userDao.create(user);
+        userDao.save(user);
 
         return mapFromUserToUserDto.apply(user);
     }
@@ -109,33 +107,33 @@ public class UserServiceImpl implements UserService {
     public void add(SignUpDto signUpDto) throws EmailAlreadyExistsException, UsernameAlreadyExistsException, ProviderNotFoundException, AuthorityNotFoundException {
 
         //verify email
-        if(this.emailExists(signUpDto.email()))
+        if(this.existsByEmail(signUpDto.email()))
             throw new EmailAlreadyExistsException("Email already in use");
 
         //verify username
-        if(this.usernameExists(signUpDto.username()))
+        if(this.existsByUsername(signUpDto.username()))
             throw new UsernameAlreadyExistsException("Username already in use");
 
         //map from signUpDto to User
         User user = mapFromSignUpDtoToUser(signUpDto);
 
         //persist user
-        userDao.create(user);
+        userDao.save(user);
     }
 
     @Override
     @Cacheable(value = "usernameExists", key = "#username")
-    public boolean usernameExists(String username) {
-        return userDao.usernameExists(username);
+    public boolean existsByUsername(String username) {
+        return userDao.existsByUsername(username);
     }
 
     @Override
     @Cacheable(value = "resetPasswordCode", key = "#email")
     public String generateResetPasswordCode(String email) throws EmailNotFoundException {
 
-        log.info("emial esxist {}", emailExists(email));
+        log.info("emial esxist {}", existsByEmail(email));
 
-        if(!emailExists(email))
+        if(!existsByEmail(email))
             throw new EmailNotFoundException("Email "+email+" is not valid.");
 
         String resetCode = UUID.randomUUID().toString();
@@ -153,7 +151,7 @@ public class UserServiceImpl implements UserService {
         String email = jwt.getSubject();
 
         //if reset null throw and exception
-        userDao.updateUserPasswordByEmail(new UpdateUserPasswordDto(email,password));
+        userDao.updatePasswordByEmail(new UpdateUserPasswordDto(email,password));
 
         Cache cache = cacheManager.getCache("resetPasswordCode");
         if (cache != null) cache.evict(email);

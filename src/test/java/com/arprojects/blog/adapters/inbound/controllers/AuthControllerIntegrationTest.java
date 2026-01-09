@@ -2,59 +2,26 @@ package com.arprojects.blog.adapters.inbound.controllers;
 
 import com.arprojects.blog.domain.dtos.GoogleLoginDto;
 import com.arprojects.blog.domain.dtos.JwtDto;
-import com.arprojects.blog.ports.outbound.service_contracts.GoogleAuthService;
-import org.junit.jupiter.api.*;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.client.RestTestClient;
-import org.testcontainers.junit.jupiter.Testcontainers;
 import org.wiremock.spring.ConfigureWireMock;
 import org.wiremock.spring.EnableWireMock;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-@Testcontainers
+
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @EnableWireMock({
         @ConfigureWireMock(port = 8888)
 })
 @ActiveProfiles("test")
-class AuthControllerIntegrationTest extends BaseIntegrationTest {
-
-    private RestTestClient client;
-
-    @LocalServerPort
-    private int port;
-
-    @Autowired
-    private GoogleAuthService googleAuthService;
-
-    @BeforeAll
-    static void beforeAll(){
-        mysql.start();
-    }
-
-    @AfterAll
-    static void afterAll(){
-        mysql.stop();
-    }
-
-    @BeforeEach
-    void setup(){
-        client = RestTestClient.bindToServer().baseUrl("http://localhost:"+port).build();
-
-        clearCaches();
-        deleteAll();
-
-        seedAuthorities();
-        seedProviders();
-    }
+class AuthControllerIntegrationTest extends ControllerBaseIntegrationTest {
 
     @Test
     @DisplayName("POST /login - should return a jwt if user credentials are valid.")

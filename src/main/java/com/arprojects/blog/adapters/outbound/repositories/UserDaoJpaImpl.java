@@ -22,7 +22,7 @@ public class UserDaoJpaImpl implements UserDao {
     }
 
     @Override
-    public Optional<User> getUserByUsername(String username) {
+    public Optional<User> getByUsername(String username) {
 
         String query = "select u from User u"
                 + " join fetch u.authorities" +
@@ -42,7 +42,7 @@ public class UserDaoJpaImpl implements UserDao {
     }
 
     @Override
-    public Optional<User> getUserByProviderUID(String providerUID) {
+    public Optional<User> getByProviderUID(String providerUID) {
 
         String query = "select u from User u" +
                 " join fetch u.authorities" +
@@ -62,12 +62,12 @@ public class UserDaoJpaImpl implements UserDao {
 
     @Override
     @Transactional
-    public void create(User user) {
+    public void save(User user) {
         entityManager.persist(user);
     }
 
     @Override
-    public boolean emailExists(String email) {
+    public boolean existsByEmail(String email) {
         String query = "select count(u) > 0 from User u where u.email=:email";
 
         return entityManager.createQuery(query,Boolean.class)
@@ -76,7 +76,7 @@ public class UserDaoJpaImpl implements UserDao {
     }
 
     @Override
-    public boolean providerUIDExists(String providerUID) {
+    public boolean existsByProviderUID(String providerUID) {
         String query = "select count(u) > 0 from User u where u.providerUniqueId=:providerUniqueId";
 
         return entityManager.createQuery(query,Boolean.class)
@@ -85,7 +85,7 @@ public class UserDaoJpaImpl implements UserDao {
     }
 
     @Override
-    public boolean usernameExists(String username) {
+    public boolean existsByUsername(String username) {
         String query = "select count(u) > 0 from User u where u.username=:username";
 
         return entityManager.createQuery(query, Boolean.class)
@@ -95,7 +95,7 @@ public class UserDaoJpaImpl implements UserDao {
 
     @Override
     @Transactional
-    public void updateUserPasswordByEmail(UpdateUserPasswordDto updateUserPasswordDto) {
+    public void updatePasswordByEmail(UpdateUserPasswordDto updateUserPasswordDto) {
         String query = "update User u set u.password=:password where u.email=:email";
 
         entityManager.createQuery(query)

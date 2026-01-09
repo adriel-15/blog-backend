@@ -9,27 +9,47 @@ import com.arprojects.blog.domain.enums.Providers;
 import com.arprojects.blog.ports.outbound.repository_contracts.AuthorityDao;
 import com.arprojects.blog.ports.outbound.repository_contracts.ProviderDao;
 import com.arprojects.blog.ports.outbound.repository_contracts.UserDao;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.cache.CacheManager;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.web.servlet.client.RestTestClient;
 import org.testcontainers.containers.MySQLContainer;
-import org.testcontainers.junit.jupiter.Container;
 
 import java.time.LocalDate;
 import java.time.Month;
 import java.util.Objects;
 import java.util.Set;
 
-public class BaseIntegrationTest {
 
-    @Container
-    @ServiceConnection
-    static final MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.0")
-            .withDatabaseName("arblog_test")
-            .withUsername("test")
-            .withPassword("test");
+public abstract class ControllerBaseIntegrationTest {
+
+    static final MySQLContainer<?> mysql;
+
+    static {
+        mysql = new MySQLContainer<>("mysql:8.0")
+                .withDatabaseName("arblog_test")
+                .withUsername("test")
+                .withPassword("test");
+        mysql.start();
+    }
+
+    @DynamicPropertySource
+    static void registerAwsProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", mysql::getJdbcUrl);
+        registry.add("spring.datasource.username", mysql::getUsername);
+        registry.add("spring.datasource.password", mysql::getPassword);
+    }
+
+    //class fields
+    @LocalServerPort
+    protected int port;
+
+    protected RestTestClient client;
 
     @Autowired
     protected PasswordEncoder encoder;
@@ -49,6 +69,17 @@ public class BaseIntegrationTest {
     @Autowired
     protected UserDao userDao;
 
+    @BeforeEach
+    void setup(){
+        client = RestTestClient.bindToServer().baseUrl("http://localhost:"+port).build();
+
+        clearCaches();
+        deleteAll();
+
+        seedAuthorities();
+        seedProviders();
+    }
+
     // ------ helper methods -------
     protected void clearCaches(){
         cacheManager.getCacheNames().forEach(name -> Objects.requireNonNull(cacheManager.getCache(name)).clear());
@@ -58,22 +89,22 @@ public class BaseIntegrationTest {
         //create and persist Authority
         Authority authority = new Authority();
         authority.setAuthority(Authorities.ADMIN);
-        authorityDao.create(authority);
+        authorityDao.save(authority);
 
         // Add these if they're needed for multiple tests
         Authority readerAuthority = new Authority();
         readerAuthority.setAuthority(Authorities.READER);
-        authorityDao.create(readerAuthority);
+        authorityDao.save(readerAuthority);
     }
 
     protected void seedProviders(){
         Provider provider = new Provider();
         provider.setProvider(Providers.BASIC);
-        providerDao.create(provider);
+        providerDao.save(provider);
 
         Provider googleProvider = new Provider();
         googleProvider.setProvider(Providers.GOOGLE);
-        providerDao.create(googleProvider);
+        providerDao.save(googleProvider);
     }
 
     protected void seedDefaultUser(){
@@ -81,8 +112,11 @@ public class BaseIntegrationTest {
         profile.setProfileName("adriel-rosario15");
         profile.setBirthDate(LocalDate.of(2000, Month.SEPTEMBER,15));
 
-        var provider = providerDao.getProviderByType(Providers.BASIC);
-        var adminAuthority = authorityDao.getAuthorityByType(Authorities.ADMIN);
+        Provider provider = providerDao.getByType(Providers.BASIC)
+                .orElseThrow(() -> new IllegalStateException("Provider BASIC missing"));
+
+        Authority authority = authorityDao.getByType(Authorities.ADMIN)
+                .orElseThrow(() -> new IllegalStateException("Authority ADMIN missing"));
 
         //create and persist user
         User user = new User();
@@ -91,11 +125,10 @@ public class BaseIntegrationTest {
         user.setEmail("adrielTest@gmail.com");
         user.setEnabled(true);
         user.setProfile(profile);
+        user.setProvider(provider);
+        user.setAuthorities(Set.of(authority));
 
-        provider.ifPresent(user::setProvider);
-        adminAuthority.ifPresent(authority -> user.setAuthorities(Set.of(authority)));
-
-        userDao.create(user);
+        userDao.save(user);
     }
 
     protected void seedGoogleUser(){
@@ -103,23 +136,21 @@ public class BaseIntegrationTest {
         Profile profile = new Profile();
         profile.setProfileName("John Doe");
 
-        var provider = providerDao.getProviderByType(Providers.GOOGLE);
-        var readerAuthority = authorityDao.getAuthorityByType(Authorities.READER);
+        Provider provider = providerDao.getByType(Providers.GOOGLE)
+                .orElseThrow(() -> new IllegalStateException("Provider GOOGLE missing"));
+
+        Authority authority = authorityDao.getByType(Authorities.READER)
+                .orElseThrow(() -> new IllegalStateException("Authority Reader missing"));
 
         User user = new User();
         user.setEmail("test@example.com");
         user.setProviderUniqueId("123");
         user.setEnabled(true);
         user.setProfile(profile);
+        user.setProvider(provider);
+        user.setAuthorities(Set.of(authority));
 
-        if(provider.isEmpty())
-            System.out.println("Provider is NULL!!!");
-
-        provider.ifPresent(user::setProvider);
-        readerAuthority.ifPresent(auth -> user.setAuthorities(Set.of(auth)));
-
-
-        userDao.create(user);
+        userDao.save(user);
     }
 
     protected void deleteAll(){
