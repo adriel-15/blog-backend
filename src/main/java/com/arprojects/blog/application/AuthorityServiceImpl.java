@@ -26,7 +26,7 @@ public class AuthorityServiceImpl implements AuthorityService {
     @Cacheable(value = "authorityByType", key = "#authorityType")
     public AuthorityDto getByType(Authorities authorityType) throws AuthorityNotFoundException {
 
-        Authority authority = authorityDao.getAuthorityByType(authorityType)
+        Authority authority = authorityDao.getByType(authorityType)
                 .orElseThrow(() -> new AuthorityNotFoundException("Authority does not exists"));
 
         return mapFromAuthorityToAuthorityDto.apply(authority);

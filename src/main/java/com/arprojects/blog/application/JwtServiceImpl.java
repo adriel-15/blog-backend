@@ -55,13 +55,13 @@ public class JwtServiceImpl implements JwtService {
         GoogleInfoDto googleInfoDto = this.googleAuthService.authenticate(googleLoginDto.googleAccessToken())
                 .orElseThrow(() -> new GoogleLoginFailedException("Failed to retrieve google user info"));
 
-        if(userService.providerUIDExists(googleInfoDto.sub())){
+        if(userService.existsByProviderUID(googleInfoDto.sub())){
             //cache
             UserDto userDto = userService.getByProviderUID(googleInfoDto.sub());
             return buildJwtDto(userDto);
         }else{
             //cache
-            if(userService.emailExists(googleInfoDto.email()))
+            if(userService.existsByEmail(googleInfoDto.email()))
                 throw new EmailAlreadyExistsException("Email already in use");
 
             AddGoogleUserDto user = new AddGoogleUserDto(

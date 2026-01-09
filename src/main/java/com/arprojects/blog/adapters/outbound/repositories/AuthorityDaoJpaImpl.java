@@ -21,7 +21,7 @@ public class AuthorityDaoJpaImpl implements AuthorityDao {
     }
 
     @Override
-    public Optional<Authority> getAuthorityByType(Authorities authorityType) {
+    public Optional<Authority> getByType(Authorities authorityType) {
 
         String query = "from Authority where authorityType=:authorityType";
 
@@ -38,7 +38,7 @@ public class AuthorityDaoJpaImpl implements AuthorityDao {
 
     @Override
     @Transactional
-    public void create(Authority authority) {
+    public void save(Authority authority) {
         entityManager.persist(authority);
     }
 

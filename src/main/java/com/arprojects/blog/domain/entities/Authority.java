@@ -4,6 +4,7 @@ import com.arprojects.blog.domain.enums.Authorities;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Size;
+import org.jspecify.annotations.NullMarked;
 
 import java.util.List;
 

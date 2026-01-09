@@ -6,7 +6,7 @@ import com.arprojects.blog.domain.enums.Authorities;
 import java.util.Optional;
 
 public interface AuthorityDao {
-    Optional<Authority> getAuthorityByType(Authorities authorityType);
-    void create(Authority authority);
+    Optional<Authority> getByType(Authorities authorityType);
+    void save(Authority authority);
     void deleteAll();
 }
