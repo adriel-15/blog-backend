@@ -133,18 +133,13 @@ public class UserServiceImpl implements UserService {
         if(!userDao.existsByEmail(email))
             throw new EmailNotFoundException("Email "+email+" is not valid.");
 
-        String resetCode = UUID.randomUUID().toString();
-
-        log.info("Email: {} reset code {}", email, resetCode);
-
-        return resetCode;
+        return UUID.randomUUID().toString();
     }
 
     @Override
     public void updatePassword(String password, Authentication authentication) {
         Jwt jwt = (Jwt) authentication.getPrincipal();
 
-        //boolean reset = jwt.getClaim("reset");
         assert jwt != null;
         String email = jwt.getSubject();
 

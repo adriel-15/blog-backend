@@ -29,7 +29,5 @@ public class ProviderServiceImpl implements ProviderService {
         return mapFromProviderToProviderDto.apply(provider);
     }
 
-    Function<Provider,ProviderDto> mapFromProviderToProviderDto = provider -> {
-        return new ProviderDto(provider.getId(),provider.getProvider());
-    };
+    Function<Provider,ProviderDto> mapFromProviderToProviderDto = provider -> new ProviderDto(provider.getId(),provider.getProvider());
 }
