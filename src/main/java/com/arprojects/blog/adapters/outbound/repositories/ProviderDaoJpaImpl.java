@@ -6,11 +6,12 @@ import com.arprojects.blog.ports.outbound.repository_contracts.ProviderDao;
 import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
 @Repository
-public class ProviderDaoJpaImpl implements ProviderDao {
+public class ProviderDaoJpaImpl implements ProviderDao{
 
     private final EntityManager entityManager;
 
@@ -18,8 +19,9 @@ public class ProviderDaoJpaImpl implements ProviderDao {
     public ProviderDaoJpaImpl(EntityManager entityManager){
         this.entityManager = entityManager;
     }
+
     @Override
-    public Optional<Provider> getProviderByType(Providers providerType) {
+    public Optional<Provider> getByType(Providers providerType) {
         String query = "from Provider where providerType=:providerType";
         try{
             Provider provider = entityManager.createQuery(query,Provider.class)
@@ -27,8 +29,20 @@ public class ProviderDaoJpaImpl implements ProviderDao {
                     .getSingleResult();
 
             return Optional.of(provider);
-        }catch (Exception ex){
+        }catch (Exception _){
             return Optional.empty();
         }
+    }
+
+    @Override
+    @Transactional
+    public void save(Provider provider) {
+        entityManager.persist(provider);
+    }
+
+    @Override
+    @Transactional
+    public void deleteAll() {
+        entityManager.createQuery("delete from Provider").executeUpdate();
     }
 }

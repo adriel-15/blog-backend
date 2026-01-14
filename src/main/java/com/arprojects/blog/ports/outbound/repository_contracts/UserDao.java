@@ -1,20 +1,24 @@
 package com.arprojects.blog.ports.outbound.repository_contracts;
 
+import com.arprojects.blog.domain.dtos.UpdateUserPasswordDto;
 import com.arprojects.blog.domain.entities.User;
-import com.arprojects.blog.domain.exceptions.*;
 
 import java.util.Optional;
 
 public interface UserDao {
-    Optional<User> getUserByUsername(String username);
+    Optional<User> getByUsername(String username);
 
-    Optional<User> getUserByProviderUID(String providerUID);
+    Optional<User> getByProviderUID(String providerUID);
 
-    void create(User user);
+    void save(User user);
 
-    boolean emailExists(String email);
+    boolean existsByEmail(String email);
 
-    boolean providerUIDExists(String providerUID);
+    boolean existsByProviderUID(String providerUID);
 
-    boolean usernameExists(String username);
+    boolean existsByUsername(String username);
+
+    void updatePasswordByEmail(UpdateUserPasswordDto updateUserPasswordDto);
+
+    void deleteAll();
 }

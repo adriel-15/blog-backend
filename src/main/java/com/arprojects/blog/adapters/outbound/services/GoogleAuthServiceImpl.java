@@ -3,6 +3,7 @@ package com.arprojects.blog.adapters.outbound.services;
 import com.arprojects.blog.domain.dtos.GoogleInfoDto;
 import com.arprojects.blog.ports.outbound.service_contracts.GoogleAuthService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -16,10 +17,12 @@ import java.util.Optional;
 public class GoogleAuthServiceImpl implements GoogleAuthService {
 
     private final RestTemplate restTemplate;
+    private final String userInfoUrl;
 
     @Autowired
-    public GoogleAuthServiceImpl(RestTemplate restTemplate){
+    public GoogleAuthServiceImpl(RestTemplate restTemplate, @Value("${google.userinfo.url}") String userInfoUrl){
         this.restTemplate = restTemplate;
+        this.userInfoUrl = userInfoUrl;
     }
 
     @Override
@@ -33,7 +36,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
             HttpEntity<Void> entity = new HttpEntity<>(headers);
 
             ResponseEntity<GoogleInfoDto> response = this.restTemplate.exchange(
-                    "https://www.googleapis.com/oauth2/v3/userinfo",
+                    this.userInfoUrl,
                     HttpMethod.GET,
                     entity,
                     GoogleInfoDto.class
@@ -46,7 +49,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
             }else{
                 return Optional.of(googleInfoDto);
             }
-        } catch (Exception e){
+        } catch (Exception _){
             return Optional.empty();
         }
     }

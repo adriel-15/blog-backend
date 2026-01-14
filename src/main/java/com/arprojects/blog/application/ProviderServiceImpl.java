@@ -23,13 +23,11 @@ public class ProviderServiceImpl implements ProviderService {
     @Cacheable(value = "providerByType", key = "#providerType")
     public ProviderDto getByType(Providers providerType) throws ProviderNotFoundException {
 
-        Provider provider = providerDao.getProviderByType(providerType)
+        Provider provider = providerDao.getByType(providerType)
                 .orElseThrow(() -> new ProviderNotFoundException("Provider does not exists"));
 
         return mapFromProviderToProviderDto.apply(provider);
     }
 
-    Function<Provider,ProviderDto> mapFromProviderToProviderDto = provider -> {
-        return new ProviderDto(provider.getId(),provider.getProvider());
-    };
+    Function<Provider,ProviderDto> mapFromProviderToProviderDto = provider -> new ProviderDto(provider.getId(),provider.getProvider());
 }

@@ -72,13 +72,11 @@ public class UserExceptionHandler {
         // Build a map: fieldName -> concatenated error messages
         Map<String, String> errors = new LinkedHashMap<>();
 
-        ex.getBindingResult().getFieldErrors().forEach(error -> {
-            errors.merge(
-                    error.getField(),
-                    error.getField() + " " + error.getDefaultMessage(),
-                    (existing, newMsg) -> existing + "; " + newMsg
-            );
-        });
+        ex.getBindingResult().getFieldErrors().forEach(error -> errors.merge(
+                error.getField(),
+                error.getField() + " " + error.getDefaultMessage(),
+                (existing, newMsg) -> existing + "; " + newMsg
+        ));
 
         ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
         problemDetail.setTitle("Validation Error");

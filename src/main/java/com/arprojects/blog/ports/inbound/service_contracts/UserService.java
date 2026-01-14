@@ -1,14 +1,13 @@
 package com.arprojects.blog.ports.inbound.service_contracts;
 
-import com.arprojects.blog.domain.dtos.AddGoogleUserDto;
-import com.arprojects.blog.domain.dtos.SignUpDto;
-import com.arprojects.blog.domain.dtos.UserDto;
+import com.arprojects.blog.domain.dtos.*;
 import com.arprojects.blog.domain.exceptions.*;
+import org.springframework.security.core.Authentication;
 
 public interface UserService {
-    boolean emailExists(String email);
+    boolean existsByEmail(String email);
 
-    boolean providerUIDExists(String providerUID);
+    boolean existsByProviderUID(String providerUID);
 
     UserDto getByProviderUID(String providerUID) throws UserNotFoundException;
 
@@ -16,5 +15,9 @@ public interface UserService {
 
     void add(SignUpDto signUpDto) throws EmailAlreadyExistsException, UsernameAlreadyExistsException, ProviderNotFoundException, AuthorityNotFoundException;
 
-    boolean usernameExists(String username);
+    boolean existsByUsername(String username);
+
+    String generateResetPasswordCode(String email) throws EmailNotFoundException;
+
+    void updatePassword(String password, Authentication authentication);
 }

@@ -7,5 +7,9 @@ import java.util.Optional;
 
 public interface ProviderDao {
 
-    Optional<Provider> getProviderByType(Providers providers);
+    Optional<Provider> getByType(Providers providers);
+
+    void save(Provider provider);
+
+    void deleteAll();
 }

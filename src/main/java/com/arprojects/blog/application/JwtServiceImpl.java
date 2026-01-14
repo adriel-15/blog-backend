@@ -6,6 +6,8 @@ import com.arprojects.blog.ports.inbound.service_contracts.JwtService;
 import com.arprojects.blog.ports.inbound.service_contracts.UserService;
 import com.arprojects.blog.ports.outbound.service_contracts.GoogleAuthService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
@@ -23,16 +25,19 @@ public class JwtServiceImpl implements JwtService {
     private final JwtEncoder jwtEncoder;
     private final GoogleAuthService googleAuthService;
     private final UserService userService;
+    private final CacheManager cacheManager;
 
     @Autowired
     public JwtServiceImpl(
             JwtEncoder jwtEncoder,
             GoogleAuthService googleAuthService,
-            UserService userService
+            UserService userService,
+            CacheManager cacheManager
     ){
         this.jwtEncoder = jwtEncoder;
         this.googleAuthService = googleAuthService;
         this.userService = userService;
+        this.cacheManager = cacheManager;
     }
 
     @Override
@@ -50,13 +55,13 @@ public class JwtServiceImpl implements JwtService {
         GoogleInfoDto googleInfoDto = this.googleAuthService.authenticate(googleLoginDto.googleAccessToken())
                 .orElseThrow(() -> new GoogleLoginFailedException("Failed to retrieve google user info"));
 
-        if(userService.providerUIDExists(googleInfoDto.sub())){
+        if(userService.existsByProviderUID(googleInfoDto.sub())){
             //cache
             UserDto userDto = userService.getByProviderUID(googleInfoDto.sub());
             return buildJwtDto(userDto);
         }else{
             //cache
-            if(userService.emailExists(googleInfoDto.email()))
+            if(userService.existsByEmail(googleInfoDto.email()))
                 throw new EmailAlreadyExistsException("Email already in use");
 
             AddGoogleUserDto user = new AddGoogleUserDto(
@@ -68,6 +73,28 @@ public class JwtServiceImpl implements JwtService {
 
             return buildJwtDto(userService.addGoogleUser(user));
         }
+    }
+
+    @Override
+    public JwtDto generateJwt(VerifyResetPasswordCodeDto verifyResetPasswordCodeDto) {
+
+        Cache cache = cacheManager.getCache("resetPasswordCode");
+
+        //if cache is null throw invalid code exception
+
+        String storedCode = cache.get(verifyResetPasswordCodeDto.email(),String.class);
+
+        //if storedCode is null throw invalid code exception
+
+        boolean isValid = storedCode.equals(verifyResetPasswordCodeDto.code());
+
+        if(!isValid){
+            //throw invalid code exception
+            return null; // MUST THROW AN EXCEPTION!!!!
+        }else{
+            return buildJwtDto(verifyResetPasswordCodeDto);
+        }
+
     }
 
     private JwtDto buildJwtDto(CustomUserDetails userDetails){
@@ -109,6 +136,24 @@ public class JwtServiceImpl implements JwtService {
                 .claim("userId", userDto.id())
                 .claim("profileName",userDto.profile().profileName())
                 .claim("authorities", authorities)
+                .build();
+
+        String tokenValue = this.jwtEncoder
+                .encode(JwtEncoderParameters.from(claims))
+                .getTokenValue();
+
+        return new JwtDto(tokenValue);
+    }
+
+    private JwtDto buildJwtDto(VerifyResetPasswordCodeDto verifyResetPasswordCodeDto){
+        Instant now = Instant.now();
+
+        JwtClaimsSet claims = JwtClaimsSet.builder()
+                .issuer("self")
+                .issuedAt(now)
+                .expiresAt(now.plus(3, ChronoUnit.MINUTES)) // shorter!
+                .subject(verifyResetPasswordCodeDto.email())
+                .claim("reset", true)
                 .build();
 
         String tokenValue = this.jwtEncoder
