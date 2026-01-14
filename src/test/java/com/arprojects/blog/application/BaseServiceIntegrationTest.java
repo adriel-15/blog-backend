@@ -14,12 +14,10 @@ import com.arprojects.blog.ports.outbound.repository_contracts.ProviderDao;
 import com.arprojects.blog.ports.outbound.repository_contracts.UserDao;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.cache.CacheManager;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
-import org.springframework.test.web.servlet.client.RestTestClient;
 import org.testcontainers.containers.MySQLContainer;
 
 import java.time.LocalDate;
@@ -28,7 +26,7 @@ import java.time.Month;
 import java.util.Objects;
 import java.util.Set;
 
-public abstract class BaseServiceIntegrationTest {
+abstract class BaseServiceIntegrationTest {
 
     static final MySQLContainer<?> mysql;
 

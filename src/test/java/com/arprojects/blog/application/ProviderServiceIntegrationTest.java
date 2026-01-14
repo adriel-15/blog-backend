@@ -15,7 +15,7 @@ import static org.mockito.Mockito.verify;
 
 @SpringBootTest
 @ActiveProfiles("test")
-public class ProviderServiceIntegrationTest extends BaseServiceIntegrationTest{
+class ProviderServiceIntegrationTest extends BaseServiceIntegrationTest{
 
     @Test
     @DisplayName("getByType(Enum provider) - should return ProviderDto if exists.")

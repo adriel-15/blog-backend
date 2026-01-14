@@ -31,7 +31,7 @@ public class AuthorityDaoJpaImpl implements AuthorityDao {
                     .getSingleResult();
 
             return Optional.of(authority);
-        }catch (Exception ex){
+        }catch (Exception _){
             return Optional.empty();
         }
     }

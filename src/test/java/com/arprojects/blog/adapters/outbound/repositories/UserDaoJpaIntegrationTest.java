@@ -13,7 +13,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class UserDaoJpaIntegrationTest extends BaseJpaIntegrationTest{
+class UserDaoJpaIntegrationTest extends BaseJpaIntegrationTest{
 
     @Test
     @DisplayName("getByUsername(String username) - return user if exists.")

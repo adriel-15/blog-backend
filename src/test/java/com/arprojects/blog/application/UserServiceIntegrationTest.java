@@ -20,7 +20,7 @@ import static org.mockito.Mockito.verify;
 
 @SpringBootTest
 @ActiveProfiles("test")
-public class UserServiceIntegrationTest extends BaseServiceIntegrationTest{
+class UserServiceIntegrationTest extends BaseServiceIntegrationTest{
 
     @Test
     @DisplayName("existsByEmail(String email) - return true if a user already have that email.")

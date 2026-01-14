@@ -32,7 +32,7 @@ import java.util.Set;
         UserDaoJpaImpl.class
 })
 @ActiveProfiles("test")
-public abstract class BaseJpaIntegrationTest {
+abstract class BaseJpaIntegrationTest {
 
     static final MySQLContainer<?> mysql;
 

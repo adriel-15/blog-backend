@@ -33,7 +33,6 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -47,7 +46,6 @@ import java.util.List;
 @EnableCaching
 public class ArBlogSecurityConfig {
 
-    //private final UserDetailsService customUserDetailService;
     private final UserDao userDao;
     private final RsaKeyProperties rsaKeys;
 
@@ -69,7 +67,7 @@ public class ArBlogSecurityConfig {
 
     // Spring Security 7: authentication must be built via AuthenticationConfiguration
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) {
         return configuration.getAuthenticationManager();
     }
 
@@ -77,13 +75,13 @@ public class ArBlogSecurityConfig {
 
     @Bean
     @Order(1)
-    public SecurityFilterChain basicChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain basicChain(HttpSecurity http) {
         http
                 .securityMatchers(matchers -> matchers
                         .requestMatchers("/login")
                 )
                 .cors(Customizer.withDefaults())
-                .csrf(csrf -> csrf.disable())
+                .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
                 .httpBasic(Customizer.withDefaults())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
@@ -95,14 +93,14 @@ public class ArBlogSecurityConfig {
 
     @Bean
     @Order(2)
-    public SecurityFilterChain jwtFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain jwtFilterChain(HttpSecurity http) {
 
         http
                 .securityMatchers(matchers -> matchers
                         .requestMatchers("/**")
                 )
                 .cors(Customizer.withDefaults())
-                .csrf(csrf -> csrf.disable())
+                .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, "/").permitAll()
                         .requestMatchers(HttpMethod.POST, "/google").permitAll()

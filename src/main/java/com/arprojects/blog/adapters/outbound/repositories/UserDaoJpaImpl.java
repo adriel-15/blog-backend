@@ -2,7 +2,6 @@ package com.arprojects.blog.adapters.outbound.repositories;
 
 import com.arprojects.blog.domain.dtos.UpdateUserPasswordDto;
 import com.arprojects.blog.domain.entities.User;
-
 import com.arprojects.blog.ports.outbound.repository_contracts.UserDao;
 import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,7 +34,7 @@ public class UserDaoJpaImpl implements UserDao {
                     .getSingleResult();
 
             return Optional.of(user);
-        } catch (Exception e) {
+        } catch (Exception _) {
             return Optional.empty();
         }
 
@@ -55,7 +54,7 @@ public class UserDaoJpaImpl implements UserDao {
                     .getSingleResult();
 
             return Optional.of(user);
-        } catch (Exception e) {
+        } catch (Exception _) {
             return Optional.empty();
         }
     }

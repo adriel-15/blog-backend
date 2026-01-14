@@ -29,7 +29,7 @@ public class ProviderDaoJpaImpl implements ProviderDao{
                     .getSingleResult();
 
             return Optional.of(provider);
-        }catch (Exception ex){
+        }catch (Exception _){
             return Optional.empty();
         }
     }

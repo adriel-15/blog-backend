@@ -49,7 +49,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
             }else{
                 return Optional.of(googleInfoDto);
             }
-        } catch (Exception e){
+        } catch (Exception _){
             return Optional.empty();
         }
     }

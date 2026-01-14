@@ -32,7 +32,5 @@ public class AuthorityServiceImpl implements AuthorityService {
         return mapFromAuthorityToAuthorityDto.apply(authority);
     }
 
-    Function<Authority,AuthorityDto> mapFromAuthorityToAuthorityDto = (authority -> {
-        return new AuthorityDto(authority.getId(),authority.getAuthority());
-    });
+    Function<Authority,AuthorityDto> mapFromAuthorityToAuthorityDto = (authority -> new AuthorityDto(authority.getId(),authority.getAuthority()));
 }

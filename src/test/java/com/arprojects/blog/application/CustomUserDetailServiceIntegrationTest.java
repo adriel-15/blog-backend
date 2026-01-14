@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @SpringBootTest
 @ActiveProfiles("test")
-public class CustomUserDetailServiceIntegrationTest extends BaseServiceIntegrationTest{
+class CustomUserDetailServiceIntegrationTest extends BaseServiceIntegrationTest{
 
     @Test
     @DisplayName("load user by username return user details.")

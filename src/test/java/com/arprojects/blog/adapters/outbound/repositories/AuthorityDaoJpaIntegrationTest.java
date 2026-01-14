@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
-public class AuthorityDaoJpaIntegrationTest extends BaseJpaIntegrationTest {
+class AuthorityDaoJpaIntegrationTest extends BaseJpaIntegrationTest {
 
     @Test
     @DisplayName("getAuthorityByType(Enum Authorities) - should return Authority if exists.")

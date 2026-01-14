@@ -2,11 +2,8 @@ package com.arprojects.blog.adapters.outbound.repositories;
 
 import com.arprojects.blog.domain.entities.Provider;
 import com.arprojects.blog.domain.enums.Providers;
-import com.arprojects.blog.ports.outbound.repository_contracts.ProviderDao;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.Optional;
 

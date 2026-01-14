@@ -61,7 +61,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Cacheable(value = "providerUIDExists", key = "#providerUID")
+    @Cacheable(value = "providerUIDExists", key = "#providerUID", unless = "#result == false")
     public boolean existsByProviderUID(String providerUID) {
         return userDao.existsByProviderUID(providerUID);
     }
@@ -107,11 +107,11 @@ public class UserServiceImpl implements UserService {
     public void add(SignUpDto signUpDto) throws EmailAlreadyExistsException, UsernameAlreadyExistsException, ProviderNotFoundException, AuthorityNotFoundException {
 
         //verify email
-        if(this.existsByEmail(signUpDto.email()))
+        if(userDao.existsByEmail(signUpDto.email()))
             throw new EmailAlreadyExistsException("Email already in use");
 
         //verify username
-        if(this.existsByUsername(signUpDto.username()))
+        if(userDao.existsByUsername(signUpDto.username()))
             throw new UsernameAlreadyExistsException("Username already in use");
 
         //map from signUpDto to User
@@ -122,7 +122,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Cacheable(value = "usernameExists", key = "#username")
+    @Cacheable(value = "usernameExists", key = "#username", unless = "#result == false")
     public boolean existsByUsername(String username) {
         return userDao.existsByUsername(username);
     }
@@ -130,10 +130,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Cacheable(value = "resetPasswordCode", key = "#email")
     public String generateResetPasswordCode(String email) throws EmailNotFoundException {
-
-        log.info("emial esxist {}", existsByEmail(email));
-
-        if(!existsByEmail(email))
+        if(!userDao.existsByEmail(email))
             throw new EmailNotFoundException("Email "+email+" is not valid.");
 
         String resetCode = UUID.randomUUID().toString();
@@ -147,7 +144,8 @@ public class UserServiceImpl implements UserService {
     public void updatePassword(String password, Authentication authentication) {
         Jwt jwt = (Jwt) authentication.getPrincipal();
 
-        boolean reset = jwt.getClaim("reset");
+        //boolean reset = jwt.getClaim("reset");
+        assert jwt != null;
         String email = jwt.getSubject();
 
         //if reset null throw and exception

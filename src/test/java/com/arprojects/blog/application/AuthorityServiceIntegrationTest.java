@@ -16,7 +16,7 @@ import static org.mockito.Mockito.verify;
 
 @SpringBootTest
 @ActiveProfiles("test")
-public class AuthorityServiceIntegrationTest extends BaseServiceIntegrationTest{
+class AuthorityServiceIntegrationTest extends BaseServiceIntegrationTest{
 
     @Test
     @DisplayName("getByType(Enum authority) - should return authorityDto if exists.")
